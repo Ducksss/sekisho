@@ -34,6 +34,9 @@ kept up to date as the build goes.
   session audited the submission against ETHGlobal's rules and the partner prize
   requirements, then rewrote the README's opening, added the partner integration, team and
   provenance sections, and drafted [SUBMISSION.md](SUBMISSION.md) (prompt 16).
+  A later Claude Code session took the project live on Base Sepolia (prompt 17): service
+  configuration, contract deployment and MultiBaas linking, the live counterparty scan,
+  the rehearsals and the verified-results documentation.
 - **Claude** (runtime): the AI analyst writes advisory case notes, and the Treasury Agent
   reasons about which vendor data to buy. Both run behind a provider switch
   (`LLM_PROVIDER`), and the demo also works with `LLM_PROVIDER=none`. The AI never decides

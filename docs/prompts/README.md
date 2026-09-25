@@ -63,3 +63,7 @@ connection, static publishing root, and push-triggered deployment verification p
 
 [16 — Submission positioning](16-submission-positioning.md) records the request to check
 how the submission presents the project, the audit plan, and the documentation-only scope.
+
+[17 — Live stack and rehearsal](17-live-stack-rehearsal.md) records the request to configure
+the live services, deploy and link the contracts, pick the demo counterparties from real
+Intercepta profiles, rehearse S1 to S6 and document only verified results.
