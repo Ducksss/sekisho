@@ -1,6 +1,6 @@
 # Public website deployment
 
-Published 26 September 2026 at **https://sekisho-phi.vercel.app**.
+Published 26 September 2026 at **https://getsekisho.vercel.app**.
 Vercel project `sekisho`, account scope `ducksss-projects`, source directory `website/`.
 
 The user selected a public landing page with GitHub and setup links. This release is

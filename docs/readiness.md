@@ -2,7 +2,7 @@
 
 Updated 26 September 2026. Code and local verification do not establish live readiness.
 
-The public project website is deployed at [sekisho-phi.vercel.app](https://sekisho-phi.vercel.app).
+The public project website is deployed at [getsekisho.vercel.app](https://getsekisho.vercel.app).
 It provides project information, labelled fixture screenshots, and setup links. It does
 not host the gate or an interactive payment console.
 

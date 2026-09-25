@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://sekisho-phi.vercel.app">Website</a> ·
+  <a href="https://getsekisho.vercel.app">Website</a> ·
   <a href="#getting-started">Try locally</a> ·
   <a href="docs/api.md">API reference</a> ·
   <a href="PITCH_PLAN.md">Demo plan</a> ·
@@ -27,7 +27,7 @@
 **Build status:** the gate, contracts, Python SDK, agents, MCP server, demo scripts,
 and console are implemented and locally tested. You can explore the console without
 credentials. Live deployment and the complete testnet rehearsal are still pending;
-see the [readiness checklist](docs/readiness.md). The [public website](https://sekisho-phi.vercel.app)
+see the [readiness checklist](docs/readiness.md). The [public website](https://getsekisho.vercel.app)
 introduces the project; it is not a hosted payment console.
 
 <details>

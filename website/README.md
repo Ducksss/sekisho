@@ -1,6 +1,6 @@
 # Sekisho public website
 
-Live: [sekisho-phi.vercel.app](https://sekisho-phi.vercel.app).
+Live: [getsekisho.vercel.app](https://getsekisho.vercel.app).
 
 Static brand and project-information site, deployed separately from the operational
 Next.js console. It makes no gate requests, wallet connections, or payment mutations.

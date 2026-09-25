@@ -103,7 +103,7 @@ open the working local demo or integration guide.
    the quick start and repository, followed by the demo-policy and readiness notes.
 
 The public landing page is implemented in `website/` and published at
-[sekisho-phi.vercel.app](https://sekisho-phi.vercel.app). The operational console's
+[getsekisho.vercel.app](https://getsekisho.vercel.app). The operational console's
 existing routes and styling remain unchanged.
 
 ## Console direction
