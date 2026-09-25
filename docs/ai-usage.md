@@ -6,6 +6,11 @@ kept up to date as the build goes.
 
 ## Tools
 
+- **Codex**: compared the implementation with the supplied PRD and pitch plan, completed
+  the missing console routes, added offline configuration checks, and updated setup and
+  readiness documentation (prompt 10). Validated unit tests, builds, and browser fixture
+  flows. This pass did not deploy contracts or claim live provider validation.
+
 - **Claude Code** (Claude Opus 5.5, in the Claude desktop app): the lead engineering
   agent. It split the PRD into workstreams, ran parallel subagents for research and
   building, then reviewed, integrated, tested and committed their output. Every commit
