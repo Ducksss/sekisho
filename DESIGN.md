@@ -104,3 +104,9 @@ Verify report. Intercepta evidence descriptions stay verbatim.
 - Preserve source, freshness, nullable values, and partial-error explanations.
 - Do not label cumulative Held events as currently locked funds.
 - Do not present fixture data or passing unit tests as live integration proof.
+
+## Marketing direction
+
+[docs/BRAND-DIRECTION.md](docs/BRAND-DIRECTION.md) records the user-requested Investflow
+reference and its translation to Sekisho's website and assets. It proposes a luminous
+blue checkpoint identity. It does not yet replace the runtime console tokens above.

@@ -10,6 +10,13 @@ kept up to date as the build goes.
   the missing console routes, added offline configuration checks, and updated setup and
   readiness documentation (prompt 10). Validated unit tests, builds, and browser fixture
   flows. This pass did not deploy contracts or claim live provider validation.
+  A subsequent packaging pass (prompt 11) adapted the README, preserved the detailed
+  setup guide, created vector/HTML brand assets, captured the real fixture console,
+  and updated and read back GitHub description/topics. The user then supplied Investflow as a visual
+  reference (prompt 12). Codex inspected it, wrote a Sekisho-specific brand brief, and
+  generated an original checkpoint illustration with the built-in imagegen tool. Cover
+  typography was composed in HTML and rendered with Chromium. Product screenshots
+  are actual fixture-console captures, not generated images.
 
 - **Claude Code** (Claude Opus 5.5, in the Claude desktop app): the lead engineering
   agent. It split the PRD into workstreams, ran parallel subagents for research and

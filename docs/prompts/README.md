@@ -43,3 +43,9 @@ live in `gate/sekisho_gate/analyst/prompts.py` and `agents/treasury/prompts.py`.
 [10 — Complete console and readiness](10-complete-console-and-readiness.md) records the
 user's build assessment and continuation request, the completion plan, and verification
 scope. This pass used no subagents.
+
+[11 — Hackathon polish](11-hackathon-polish.md) records the requested README, brand assets,
+fixture screenshots, GitHub metadata, and publication pass. This pass used no subagents.
+
+[12 — Investflow direction](12-investflow-direction.md) records the user's new visual reference
+and the project-specific design brief.
