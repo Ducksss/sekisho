@@ -30,7 +30,10 @@ kept up to date as the build goes.
 - **Claude Code** (Claude Opus 5.5, in the Claude desktop app): the lead engineering
   agent. It split the PRD into workstreams, ran parallel subagents for research and
   building, then reviewed, integrated, tested and committed their output. Every commit
-  it made carries a `Co-Authored-By: Claude` trailer.
+  it made carries a `Co-Authored-By: Claude` trailer. On 26 September a separate Claude Code
+  session audited the submission against ETHGlobal's rules and the partner prize
+  requirements, then rewrote the README's opening, added the partner integration, team and
+  provenance sections, and drafted [SUBMISSION.md](SUBMISSION.md) (prompt 16).
 - **Claude** (runtime): the AI analyst writes advisory case notes, and the Treasury Agent
   reasons about which vendor data to buy. Both run behind a provider switch
   (`LLM_PROVIDER`), and the demo also works with `LLM_PROVIDER=none`. The AI never decides
