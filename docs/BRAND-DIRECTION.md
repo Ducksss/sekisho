@@ -104,7 +104,8 @@ open the working local demo or integration guide.
 
 The public landing page is implemented in `website/` and published at
 [getsekisho.vercel.app](https://getsekisho.vercel.app). The operational console's
-existing routes and styling remain unchanged.
+routes retain their operational behavior. Its shared palette, borders, corners, and
+heading typography now follow this direction while keeping Atkinson body text.
 
 ## Console direction
 

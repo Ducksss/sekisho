@@ -92,8 +92,9 @@
 }
 
 .wordmark {
-  font-size: 21px;
-  font-weight: var(--weight-heavy);
+  font-family: var(--font-heading);
+  font-size: 24px;
+  font-weight: var(--weight-semibold);
   letter-spacing: 0.01em;
   line-height: 1;
 }

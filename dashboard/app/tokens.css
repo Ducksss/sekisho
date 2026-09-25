@@ -3,8 +3,8 @@
  * used by the console is defined here. Branding is a token swap: change the values in the
  * "Palette" and "Type" blocks (or map the semantic tokens to brand tokens) and nothing else.
  *
- * Direction: an inspection office for agent payments. Prussian blue (藍, the Edo-era
- * "Berlin blue" of Hiroshige's prints) carries structure; the three verdict colours are the
+ * Direction: an inspection office for agent payments. Midnight and signal blue
+ * connect the console to the public website; the three verdict colours are the
  * only other saturated hues and are reserved for verdicts (always with an icon and a label).
  * Seals (判) borrow the checkpoint's stamp. Type is Atkinson Hyperlegible, designed for
  * legibility at distance: this console runs on a projector.
@@ -12,16 +12,16 @@
 
 :root {
   /* ---------- Palette (raw values: swap these for branding) ---------- */
-  --palette-paper: #edf0f4; /* page background, cool paper */
+  --palette-paper: #f4f7fc; /* page background, cool paper */
   --palette-white: #ffffff;
-  --palette-ink: #101b2b; /* sumi ink */
-  --palette-slate: #4f5b6c; /* secondary text, 7:1 on white */
-  --palette-mist: #cfd6e0;
-  --palette-mist-strong: #97a3b3;
-  --palette-mist-faint: #e3e8ee;
-  --palette-ai: #1b3f8f; /* Prussian blue, 藍 */
-  --palette-ai-deep: #102a66;
-  --palette-ai-wash: #e5ebf7;
+  --palette-ink: #061234; /* sumi ink */
+  --palette-slate: #536079; /* secondary text */
+  --palette-mist: #dce3f0;
+  --palette-mist-strong: #8897b2;
+  --palette-mist-faint: #e9eef7;
+  --palette-ai: #315bff; /* signal blue: actions */
+  --palette-ai-deep: #2445d8;
+  --palette-ai-wash: #eaf2ff;
   --palette-rokusho: #0f6e47; /* verdigris green: ALLOW */
   --palette-rokusho-wash: #e1f2e9;
   --palette-yamabuki: #8a5700; /* dark amber text: HOLD */
@@ -86,6 +86,8 @@
   --inverse-error: #ffb4a6;
 
   /* ---------- Type ---------- */
+  --font-heading: "Inter Tight", system-ui, sans-serif;
+  --weight-heading: 550;
   --font-sans: "Atkinson Hyperlegible Next Variable", "Atkinson Hyperlegible Next", system-ui,
     -apple-system, "Segoe UI", sans-serif;
   --font-mono: "Atkinson Hyperlegible Mono Variable", "Atkinson Hyperlegible Mono", ui-monospace,
@@ -129,15 +131,15 @@
 
   /* ---------- Shape ---------- */
   --radius-xs: 3px;
-  --radius-sm: 5px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
   --radius-pill: 999px;
   --border-width: 1px;
   --border-width-strong: 2px;
 
   /* ---------- Elevation ---------- */
-  --shadow-card: 0 1px 0 rgba(16, 27, 43, 0.04), 0 1px 3px rgba(16, 27, 43, 0.07);
+  --shadow-card: 0 2px 8px rgba(6, 18, 52, 0.035);
   --shadow-raised: 0 6px 20px rgba(16, 27, 43, 0.12), 0 1px 3px rgba(16, 27, 43, 0.08);
   --shadow-modal: 0 24px 64px rgba(16, 27, 43, 0.28);
 

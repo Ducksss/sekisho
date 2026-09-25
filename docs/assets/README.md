@@ -4,7 +4,8 @@ Brand direction: midnight navy, luminous signal blue, translucent checkpoint ima
 and tightly set type, distilled from the user-supplied Investflow reference. See
 [the full direction brief](../BRAND-DIRECTION.md). Keep the existing checkpoint mark
 and clear ALLOW / HOLD / BLOCK labels in the product. The pitch is **“Before the agent signs.”** The companion
-one-liner is **“The compliance checkpoint for AI agent payments.”** The console runtime has not been restyled by this package.
+one-liner is **“The compliance checkpoint for AI agent payments.”** The console now shares the midnight/signal-blue palette and Inter Tight headings;
+Atkinson remains the operational body face.
 
 | Asset | Use and provenance |
 |---|---|

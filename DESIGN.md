@@ -3,11 +3,11 @@ version: alpha
 name: Sekisho Compliance Console
 description: A checkpoint ledger for reviewing agent payments and their evidence.
 colors:
-  primary: "#1b3f8f"
-  background: "#edf0f4"
+  primary: "#315bff"
+  background: "#f4f7fc"
   surface: "#ffffff"
-  text: "#101b2b"
-  muted: "#4f5b6c"
+  text: "#061234"
+  muted: "#536079"
   allow: "#0f6e47"
   hold: "#8a5700"
   block: "#b42a1a"
@@ -17,9 +17,9 @@ typography:
   mono:
     fontFamily: '"Atkinson Hyperlegible Mono Variable", ui-monospace, monospace'
 rounded:
-  sm: "5px"
-  md: "8px"
-  lg: "12px"
+  sm: "6px"
+  md: "12px"
+  lg: "16px"
 spacing:
   page-max: "1400px"
   gutter: "24px"
@@ -59,7 +59,8 @@ Light mode is the current supported theme. Forced-color scrollbars use system co
 
 ## Typography
 
-Atkinson Hyperlegible Next carries body and heading text; its mono companion carries
+Inter Tight carries headings at weight 550. Atkinson Hyperlegible Next carries body
+text; its mono companion carries
 addresses, hashes, and code. Body text is 17px, table text 15px, page titles 28px.
 The existing Mincho stack is reserved for seal kanji. Use tabular numerals for balances.
 Full addresses remain available by copying and explorer navigation.
@@ -78,7 +79,7 @@ menus and dialogs. Loading and errors belong inside the affected data region.
 
 ## Shapes
 
-Controls use 5px corners, panels 8px or 12px according to the shared primitive. Meters
+Controls use 6px corners, panels 12px or 16px according to the shared primitive. Meters
 use rounded tracks. Reuse existing controls instead of introducing screen-local variants.
 
 ## Components
@@ -108,8 +109,9 @@ Verify report. Intercepta evidence descriptions stay verbatim.
 ## Marketing direction
 
 [docs/BRAND-DIRECTION.md](docs/BRAND-DIRECTION.md) records the user-requested Investflow
-reference and its translation to Sekisho's website and assets. It proposes a luminous
-blue checkpoint identity. It does not yet replace the runtime console tokens above.
+reference and its translation to Sekisho's website and assets. It defines a luminous
+blue checkpoint identity. Console tokens now share its midnight and signal-blue palette,
+with Inter Tight headings and quieter borders. Verdict colors and operational density remain.
 
 The public marketing surface is implemented separately in `website/`. Its canonical
 marketing tokens live in `website/styles.css` and follow the brand direction: midnight
