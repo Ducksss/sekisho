@@ -1,34 +1,179 @@
-# Wallet Audit Trail
+# Sekisho 関所
 
-An explainable, time-bound screening and audit layer for crypto payments.
+The compliance checkpoint an AI agent payment passes through before signing.
+Sekisho screens the other wallet with Intercepta, the Chainalysis sanctions oracle,
+and a bounded source-of-funds trace. A deterministic demo policy returns **ALLOW**,
+**HOLD**, or **BLOCK**. Held USDC waits in an onchain escrow for an officer; screening
+verdicts and overrides are attested through Curvegrid MultiBaas.
 
-## Status
+**Status:** the gate, contracts, Python SDK, agents, MCP server, demo scripts, and
+console are implemented locally. Live deployment and the full testnet rehearsal
+remain unverified. This checkout needs service credentials, funded fresh testnet
+wallets, and selected clean/mixer counterparties. Do not mistake fixture demos or
+unit tests for proof of live integration. See [remaining work](docs/readiness.md).
 
-Project initialized from the supplied pitch deck. No application or live integrations have been implemented yet. Technology choices are still open.
+## Architecture
 
-## Product concept
+```text
+Treasury Agent → x402 402 → payer hook → Sekisho Gate → policy verdict
+                                         ↑                 │
+Vendor Agent ← payee hook ← payer wallet  │                 ├ ALLOW → sign, settle
+                                         │                 ├ HOLD → escrow → officer
+              Intercepta + oracle + trace ┘                 └ BLOCK → no signature
+                                                           │
+                                   MultiBaas → registry/events/webhooks
+                                                           │
+                                         Console ← gate API + SSE
+```
 
-Assess an exact payment intent, collect bounded wallet evidence, and return `ALLOW`, `HOLD`, or `DENY` with reasons, coverage, freshness, and policy version. Preserve decisions and corrections in an auditable history.
+- `gate/`: FastAPI, deterministic policy, live screening adapters, tracing, advisory
+  analyst notes, canonical reports, attestation queue, SQLite, SSE and webhooks.
+- `contracts/`: ComplianceRegistry and ComplianceEscrow, Foundry tests and deployment.
+- `sdk/sekisho/`: gate client and x402 hooks. See [SDK integration](sdk/README.md).
+- `agents/`: treasury tools/LLM agent, four vendor APIs, spoofed-payer scenario.
+- `mcp/server.py`: screening, case, history and policy tools for MCP agents.
+- `dashboard/`: Next.js console: decisions, cases, hold queue, audit, treasury,
+  read-only policy, integration snippets.
+- `scripts/`: setup, candidate scanning, smoke checks and deterministic scenarios.
 
-The proposed MVP includes:
+The [PRD](PRD.md), [API contract](docs/api.md), and [pitch plan](PITCH_PLAN.md)
+provide the product requirements. [AI usage](docs/ai-usage.md) records assistance.
 
-- A wallet screening and evidence dashboard.
-- A deterministic payment policy API.
-- An audit history and export with correction records.
-- A guarded testnet payment flow that checks the intent before signing.
+## Local installation
 
-## Source material
+Prerequisites: Python 3.11, Node.js 22 with npm, Foundry, Git, and (for live webhook
+rehearsals) cloudflared. Run commands from the repository root.
 
-[Original pitch deck](docs/pitch-deck.md), copied unchanged from the supplied document. Its integration targets, dates, and submission requirements are proposals from that document and have not been independently verified.
+```bash
+make install
+test -f .env || cp .env.example .env
+make wallets
+```
 
-## Initial implementation sequence
+Do not overwrite an existing `.env`. `make wallets` creates one when absent, fills
+only empty role keys, and prints addresses only. Fund all four fresh role wallets
+with testnet gas and the treasury buyer with test USDC. Keep keys in `.env` only.
 
-1. Define payment intent, assessment, evidence, and audit record schemas.
-2. Implement policy evaluation and intent-bound approvals.
-3. Add provider and transaction-history adapters.
-4. Build screening, evidence, and review views.
-5. Connect the guarded testnet payment flow and validate allowed and held paths.
+Fill the service configuration in `.env`:
 
-## Proposed MVP boundaries
+| Configuration | Purpose |
+|---|---|
+| `INTERCEPTA_API_KEY` | Live wallet scans |
+| `BLOCKSCOUT_API_KEY` | Source-of-funds history |
+| `MB_URL`, `MB_ADMIN_API_KEY` | MultiBaas on the configured testnet |
+| `PUBLIC_GATE_URL`, `MB_WEBHOOK_SECRET` | Public webhook delivery and verification |
+| `VENDOR_CLEAN_PAYTO`, `VENDOR_MIXER_PAYTO` | Counterparties selected from real scans |
+| `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` | Optional LLM provider; set `LLM_PROVIDER=none` for template notes and deterministic scenarios |
 
-Ethereum-first, bounded transaction coverage, and testnet payments only. Missing required evidence results in a hold. No detected risk is not a safety guarantee. Synthetic fixtures must be distinguishable from live findings.
+Run `make check-setup` for an offline, secret-safe checklist. A green result checks
+configuration only; it does not validate credentials, balances, or deployment.
+
+## Live testnet setup
+
+Default value-transfer and contract chain: Base Sepolia (84532). Ethereum and Base
+mainnet RPCs are used **read-only** for screening. Never send mainnet transactions.
+
+1. Configure and fund the wallets, then run `make deploy`. Save the printed registry
+   and escrow addresses in `.env`. The script deploys and links through forge-multibaas;
+   see [contract deployment details](contracts/README.md).
+2. Start `make gate`, then `make tunnel` in another terminal. Set the tunnel's HTTPS
+   URL as `PUBLIC_GATE_URL` in `.env`.
+3. Run `make setup-multibaas` to link USDC, register the webhook and create the
+   `exposure_by_payee` and `released_by_payee` Event Queries. Restart the gate after
+   changing its environment, including the webhook secret.
+4. Run `.venv/bin/python scripts/scan_candidates.py <candidate-addresses-or-file>`.
+   Select actual ALLOW and mixer-exposed HOLD candidates from `scan_results.json`;
+   the buyer wallet must also screen ALLOW. Set the vendor addresses in `.env` and
+   restart processes that loaded the old settings. Scans consume Intercepta quota.
+5. Run `make vendors`, `make control`, and `make dashboard` in separate terminals.
+   Optional: `make mcp` starts streamable HTTP at `http://127.0.0.1:9000/mcp`.
+6. Run `make demo-setup` to check balances and approve test USDC to escrow, then
+   `make demo S=S1` to produce an attestation/webhook. Run `make smoke` before rehearsal.
+
+| Service | Local address |
+|---|---|
+| Console | http://localhost:3000 |
+| Gate / OpenAPI | http://localhost:8000/docs |
+| Vendors | http://localhost:4021–4024 |
+| Scenario control | http://localhost:8100 |
+| MCP HTTP | http://localhost:9000/mcp |
+
+The console defaults to live gate data. Optional `dashboard/.env.local` values are
+shown at the end of `.env.example`. `NEXT_PUBLIC_*` values are compiled at build time;
+rebuild when changing them. Never put service keys in browser environment variables.
+The local demo operator endpoints are not a production authentication boundary.
+
+## Demo and verification
+
+```bash
+make demo-reset
+make demo S=S1       # clean: ALLOW → PAID, buyer screened by seller too
+make demo S=S3       # sanctioned: BLOCK before signing
+make demo S=S2       # HOLD → escrow; release from the case's officer panel
+make demo S=S4       # simulated compromised model attempts injected payment; gate blocks
+make demo S=S5       # spoofed tainted payer refused before facilitator verification
+```
+
+`make demo S=all` runs S1, S3, S2, S4, S5. It waits for officer release during S2.
+For an unattended **testnet rehearsal**, use
+`.venv/bin/python scripts/demo.py all --auto-release`.
+Run `make demo-reset` between rehearsals so prior clearances do not alter S2.
+S4 defaults to a deterministic compromised-agent path; `--llm` exercises the real model.
+
+S6 is separate: restart the gate with `FAULT_INJECT=intercepta_timeout make gate`,
+then run `make demo S=S6`. Restart normally afterward. S6 is not silently included
+in `all`, because normal and fault-injected cases require different gate settings.
+
+On `/audit`, open a confirmed case and click **Verify report**. The browser hashes the
+exact report text and compares it with the indexed onchain `Screened.reportHash`.
+On `/treasury`, chain-read balances and Event Query totals are separate from
+case-store totals. Exposure means cumulative Held events; it is not net outstanding
+escrow. Missing reads display as unavailable, never zero.
+
+## Tests and UI-only development
+
+```bash
+make test
+npm --prefix dashboard run lint
+npm --prefix dashboard run build
+```
+
+If Foundry crashes in macOS proxy discovery, run the isolated contract suite offline:
+`cd contracts && forge test --offline`. No network is needed after dependencies and
+compiler artifacts have been installed.
+
+For UI development without credentials:
+
+```bash
+cd dashboard
+npm run dev:fixtures
+```
+
+This enables the conspicuous **FIXTURE DATA** banner and browser-only simulated
+scenarios, officer decisions, and events. The running gate has no mock mode. Stop
+that dev process before starting the normal console. Submitted builds must leave
+`NEXT_PUBLIC_USE_FIXTURES` unset or `false`.
+
+## Integration details and limits
+
+**Intercepta:** live direct Quick Scan runs before payer signing and payee acceptance.
+Funder scans are cached; trait descriptions remain verbatim. Failed required scans
+produce at least HOLD. Real captured clean/mixer/sanctioned test profiles still need
+to replace the clearly marked synthetic fixtures in `gate/tests/data/intercepta/`.
+See [service research](docs/research/services.md) for API assumptions; live quota,
+latency and provider feedback must be measured before publishing performance claims.
+
+**MultiBaas:** contract linking, composed/signed writes, indexed events, authenticated
+webhooks, and saved Event Queries are implemented. Live contract addresses and deployment
+records are not yet present. Do not publish sample addresses as deployed contracts.
+
+This is a **demo policy**, not legal advice or a certified AML programme. Tracing is
+bounded to one/two hops, with limited history and a configured ETH/USD approximation.
+An ALLOW is a point-in-time decision under that policy, not a safety guarantee. Tornado
+Cash is described as a mixer, not a sanctioned entity. Only testnet value moves.
+
+## Submission material still to supply
+
+Human review/sign-off, deployed contract links, genuine integration feedback, measured
+live results, team names/social links, screenshots from a live run, and the human-narrated
+backup video. Follow [PITCH_PLAN.md](PITCH_PLAN.md) for rehearsal and submission preparation.

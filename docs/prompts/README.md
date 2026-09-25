@@ -37,3 +37,9 @@ committed the results.
 
 The runtime prompts, for the AI analyst and the Treasury Agent, are PRD Appendix E. They
 live in `gate/sekisho_gate/analyst/prompts.py` and `agents/treasury/prompts.py`.
+
+## Codex continuation
+
+[10 — Complete console and readiness](10-complete-console-and-readiness.md) records the
+user's build assessment and continuation request, the completion plan, and verification
+scope. This pass used no subagents.
