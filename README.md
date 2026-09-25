@@ -24,24 +24,39 @@
 
 ![Before the agent signs. A luminous glass checkpoint represents the policy boundary before payment.](docs/assets/banner.png)
 
-**Build status:** the gate, contracts, Python SDK, agents, MCP server, demo scripts,
-and console are implemented and locally tested. You can explore the console without
-credentials. Live deployment and the complete testnet rehearsal are still pending;
-see the [readiness checklist](docs/readiness.md). The [public website](https://getsekisho.vercel.app)
-includes a guided synthetic payment walkthrough and a tested SDK example. Live
-screening and payment execution still require local setup.
+**Banks must know who they pay. AI agents are about to pay strangers at machine speed.**
+Sekisho is the checkpoint every agent payment passes through. It screens the other wallet
+before the agent signs, then allows the payment, holds it for a human, or blocks it, and
+attests every decision onchain.
+
+**ETHGlobal Tokyo 2026 judges:** [Intercepta integration](#intercepta-screening-at-the-moment-of-decision) ·
+[Curvegrid MultiBaas](#curvegrid-multibaas-every-write-event-and-webhook) · [Team](#team) ·
+[AI usage](#ai-usage-and-provenance) · [Guided walkthrough](https://getsekisho.vercel.app)
+<!-- TODO(before submit): add the demo video link here once it is uploaded. -->
+
+**Status (26 Sep 2026):** the gate, contracts, Python SDK, agents, MCP server and console
+are implemented. 363 Python tests, 18 contract tests and 45 report-hash checks pass in
+[CI](https://github.com/Ducksss/sekisho/actions/workflows/ci.yml) on `main`.
+The remaining step is the live testnet run with keyed Intercepta and MultiBaas calls
+([readiness checklist](docs/readiness.md)). Until then, screenshots and the website
+walkthrough use labelled synthetic data.
+<!-- TODO(before submit): once the live run is done, replace the last two sentences with
+     the Base Sepolia contract addresses and one ALLOW, one HOLD and one BLOCK case. -->
 
 <details>
 <summary>Table of contents</summary>
 
 - [About Sekisho](#about-sekisho)
 - [Console walkthrough](#console-walkthrough)
+- [Partner integrations](#partner-integrations)
 - [Built with](#built-with)
 - [Getting started](#getting-started)
 - [Usage](#usage)
 - [How it works](#how-it-works)
 - [Verification](#verification)
 - [Roadmap](#roadmap)
+- [Team](#team)
+- [AI usage and provenance](#ai-usage-and-provenance)
 - [Contributing](#contributing)
 - [License](#license)
 - [Contact](#contact)
@@ -90,6 +105,90 @@ evidence of live screening or settlement. The purple fixture banner stays visibl
 ![Treasury balances, exposure by payee, released totals, and the counterparty book.](docs/assets/console-treasury.png)
 
 </details>
+
+## Partner integrations
+
+### Intercepta: screening at the moment of decision
+
+Both sides of every x402 payment are screened before anything is signed or accepted.
+
+| Moment | What happens | Code |
+|---|---|---|
+| Before the buyer signs | The payer hook sends the vendor's `payTo` to the gate in x402 `on_before_payment_creation`. Only ALLOW lets x402 create a signature | [`sdk/sekisho/x402_hooks.py#L70`](sdk/sekisho/x402_hooks.py#L70) |
+| Before the vendor accepts | The vendor screens the payer before x402 runs (HTTP 403 unless ALLOW), then again in `on_before_verify` | [`agents/vendors/app.py#L230`](agents/vendors/app.py#L230), [`sdk/sekisho/x402_hooks.py#L112`](sdk/sekisho/x402_hooks.py#L112) |
+
+Each screen calls Intercepta from the gate ([client and endpoints](gate/sekisho_gate/screening/intercepta.py#L39)):
+
+- **Quick Scan Address** on the counterparty, always live for the direct counterparty
+  ([pipeline.py#L223](gate/sekisho_gate/screening/pipeline.py#L223)).
+- **Scan Token** on the payment asset's mainnet equivalent: testnet USDC is checked as Base USDC
+  ([pipeline.py#L242](gate/sekisho_gate/screening/pipeline.py#L242)).
+- **Address-poisoning check** when enabled ([pipeline.py#L240](gate/sekisho_gate/screening/pipeline.py#L240)).
+- **Quick Scan on direct funders** found by the source-of-funds trace, cached per address
+  ([tracer.py#L644](gate/sekisho_gate/screening/tracer.py#L644)).
+- **Deep Scan** after a hold, for the case file; it never changes the verdict
+  ([pipeline.py#L405](gate/sekisho_gate/screening/pipeline.py#L405)).
+
+The result decides the payment ([policy.yaml](gate/policy/policy.yaml#L17), [engine.py#L186](gate/sekisho_gate/policy/engine.py#L186)):
+
+| Screening result | Verdict | What happens |
+|---|---|---|
+| Hard-block trait (for example, a sanctioned address) or toxic score of 80 or more | **BLOCK** | The payer hook aborts; no signature exists |
+| Hold trait (for example, mixer exposure) or toxic score of 40 or more | **HOLD** | USDC waits in `ComplianceEscrow` until an officer releases or refunds it |
+| Quick Scan failed, timed out or malformed | **HOLD** | Fail closed; an officer override can't lift this rule ([engine.py#L334](gate/sekisho_gate/policy/engine.py#L334)) |
+| First payment to a new counterparty above 25 USD | **HOLD** | A human looks first ([engine.py#L394](gate/sekisho_gate/policy/engine.py#L394)) |
+
+Spending is also capped at 1 USD per payment in the x402 client itself, independent of the gate
+([tools.py#L766](agents/treasury/tools.py#L766)). The console shows Intercepta's trait
+descriptions word for word. The demo runs S1 (clean vendor, ALLOW), S3 (sanctioned address,
+BLOCK) and S2 (mixer-exposed funds, HOLD, then officer release); see the
+[demo plan](PITCH_PLAN.md#3-live-demo-script-400-one-speaker).
+
+**Our feedback on the Intercepta API**
+
+- **Time to first call:** quick. `/llms.txt` and the Markdown version of each docs page let our
+  coding agents read the reference directly, and the auth error is clear (403 with a readable
+  message). <!-- TODO(before submit): add the time from receiving the key to the first keyed response. -->
+- **Confusing:** one product with three names: intercepta.io, docs at docs.web3antivirus.io and
+  the API at api.web3antivirus.io. docs.intercepta.io does not resolve.
+- **Missing:** example response bodies for the address endpoints (the docs give schemas only),
+  and documented responses for a never-seen wallet and for an exhausted quota. A fail-closed
+  payment gate has to tell "clean" from "unknown" from "out of quota".
+- **Would help most:** a chain parameter on the address scans, and one "screen this x402
+  payment" call that takes the `payTo`, asset, amount and EIP-3009 authorization together.
+
+### Curvegrid MultiBaas: every write, event and webhook
+
+MultiBaas is Sekisho's path onchain:
+
+- **Deploy and link.** `forge-multibaas` links `ComplianceRegistry` and `ComplianceEscrow` under
+  stable aliases as part of deployment ([Deploy.s.sol#L33](contracts/script/Deploy.s.sol#L33)).
+- **Every write through the REST API.** Each contract call is composed by MultiBaas, signed
+  locally with the role's key and submitted through MultiBaas
+  ([multibaas.py#L518](gate/sekisho_gate/chain/multibaas.py#L518),
+  [#L539](gate/sekisho_gate/chain/multibaas.py#L539)). That covers screening attestations and
+  officer overrides ([attest.py#L219](gate/sekisho_gate/chain/attest.py#L219)), escrow release and
+  refund, and the treasury agent's escrow deposit ([tools.py#L666](agents/treasury/tools.py#L666)).
+- **Webhooks drive case state.** HMAC-verified event webhooks confirm attestations and move
+  cases to held, released or refunded ([webhooks.py#L154](gate/sekisho_gate/webhooks.py#L154)).
+- **Event Queries power the treasury view.** Saved queries `exposure_by_payee` and
+  `released_by_payee` feed the Treasury page
+  ([setup_multibaas.py#L77](scripts/setup_multibaas.py#L77), [services.py#L324](gate/sekisho_gate/services.py#L324)).
+- **One setup script** registers USDC, the webhook and the saved queries
+  ([scripts/setup_multibaas.py](scripts/setup_multibaas.py)).
+
+**Our experience with MultiBaas**
+
+- **Wins:** every contract call is a REST call, so the Python gate needed no web3 stack for
+  writes. Indexed events and webhooks replaced an indexer we would otherwise have written. The
+  published OpenAPI spec let us check request shapes before we had a deployment.
+- **Challenges:** the webhook sample in the docs and the spec disagree on the alias field
+  (`addressLabel` or `addressAlias`). `GET /events` has no sort order and returns 10 rows by
+  default, so we poll by transaction hash instead. Event Query `eventName` formats differ across
+  official samples, and result keys come back lowercased. `forge-multibaas` links aliases during
+  simulation, so a failed broadcast leaves aliases pointing at nothing, and a re-run returns 409
+  unless both allow-update flags are set.
+<!-- TODO(before submit): add notes from the live deployment (chain, plan limits, anything new). -->
 
 ## Built with
 
@@ -188,9 +287,10 @@ npm --prefix dashboard run lint
 npm --prefix dashboard run build
 ```
 
-Local verification recorded on 26 September 2026: **356 Python tests, 18 contract tests,
-and 45 report-hash checks passed**, along with the console build and lint. Browser checks
-covered desktop/mobile, review actions, report verification, and recoverable data errors.
+[CI](https://github.com/Ducksss/sekisho/actions/runs/36166877013) on `main`, 26 September 2026:
+**363 Python tests, 18 contract tests (including 2 fuzz tests) and 45 report-hash checks
+passed**, along with the console build and lint. Local browser checks covered desktop/mobile,
+review actions, report verification, and recoverable data errors.
 See [verification scope and limitations](docs/readiness.md#local-verification) and
 [GitHub CI](https://github.com/Ducksss/sekisho/actions/workflows/ci.yml).
 These checks do not establish live provider performance or settlement.
@@ -209,6 +309,25 @@ These checks do not establish live provider performance or settlement.
 
 The [readiness checklist](docs/readiness.md) is the detailed handoff for the remaining work.
 The [pitch plan](PITCH_PLAN.md) covers the ETHGlobal Tokyo 2026 demonstration.
+
+## Team
+
+- **Chai Pin Zheng** · GitHub [@Ducksss](https://github.com/Ducksss)
+<!-- TODO(before submit): add each teammate's name, role and X or LinkedIn handle.
+     Curvegrid's prize asks for a brief team intro with social handles. -->
+
+## AI usage and provenance
+
+The repository history starts on Fri 25 Sep 2026 at 22:03 JST. The team wrote the
+[PRD](PRD.md) and [pitch plan](PITCH_PLAN.md), which open the history unchanged; the
+contracts in `contracts/src/` come from the PRD's Appendix A. AI coding agents (Claude Code
+as lead agent with subagents, and Codex) built the gate, SDK, agents, MCP server, console,
+tests and docs from the PRD under the team's direction. Every prompt is committed in
+[docs/prompts/](docs/prompts/README.md), and [docs/ai-usage.md](docs/ai-usage.md) maps each
+area to how it was made. At runtime, AI only writes advisory case notes; the deterministic
+policy decides every verdict.
+<!-- TODO(before submit): say when the PRD (including the Appendix A contracts) was written
+     and whether AI tools helped write it, and fill in "Team review" in docs/ai-usage.md. -->
 
 ## Contributing
 
