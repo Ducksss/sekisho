@@ -49,6 +49,13 @@ in front.
 
 ## Direct calls and errors
 
+A complete screening-only example is in [examples/screen_before_signing.py](examples/screen_before_signing.py).
+Run `python sdk/examples/screen_before_signing.py 0xCOUNTERPARTY` from the repository root
+with the SDK installed and a gate on localhost:8000. It never signs or sends funds;
+HTTP errors and incomplete decisions return HOLD. Exit code 0 means ALLOW, 1 means
+HOLD or BLOCK. The public website distributes this same tested file.
+
+
 `await sk.screen(counterparty=…, direction=…, amount=…, asset=…, payment_chain_id=…, source=…, agent_id=…)`
 returns a `Decision`, which mirrors ScreeningDecision in [docs/api.md](../docs/api.md). The client
 also has `report_payment`, `report_hold`, `get_case`, `list_cases`, `policy` and `aclose`

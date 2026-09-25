@@ -52,3 +52,6 @@ and the project-specific design brief.
 
 [13 — Vercel deployment](13-vercel-deployment.md) records the public landing page and
 Vercel publication requested after the brand direction.
+
+[14 — Guided product demo](14-guided-product-demo.md) records the approved website,
+SDK example, console refinement, and live-proof readiness check.

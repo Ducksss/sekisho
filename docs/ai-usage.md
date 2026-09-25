@@ -20,6 +20,10 @@ kept up to date as the build goes.
   Prompt 13 added the static public website from that direction and verified desktop,
   mobile, link, and keyboard behavior before Vercel publication. The gate, contracts,
   and live payment console were not deployed by the website release.
+  Prompt 14 added a browser-only guided simulation using canonical UI fixtures, a
+  tested fail-closed SDK example, and shared console theme changes. It refreshed
+  actual fixture screenshots and rechecked desktop/mobile behavior. Live proof remained
+  blocked on service credentials and fresh funded testnet wallets.
 
 - **Claude Code** (Claude Opus 5.5, in the Claude desktop app): the lead engineering
   agent. It split the PRD into workstreams, ran parallel subagents for research and
