@@ -1,5 +1,7 @@
 # Sekisho public website
 
+Live: [sekisho-phi.vercel.app](https://sekisho-phi.vercel.app).
+
 Static brand and project-information site, deployed separately from the operational
 Next.js console. It makes no gate requests, wallet connections, or payment mutations.
 All product screenshots retain their synthetic-fixture labels. The live backend and

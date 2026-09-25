@@ -102,8 +102,9 @@ open the working local demo or integration guide.
 6. **Closing invitation.** “Put a checkpoint before your next agent payment.” Link to
    the quick start and repository, followed by the demo-policy and readiness notes.
 
-A new landing route is not implemented by this brief. Preserve the working console's
-existing routes if a public website is later added.
+The public landing page is implemented in `website/` and published at
+[sekisho-phi.vercel.app](https://sekisho-phi.vercel.app). The operational console's
+existing routes and styling remain unchanged.
 
 ## Console direction
 

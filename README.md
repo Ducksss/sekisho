@@ -10,6 +10,7 @@
 </p>
 
 <p align="center">
+  <a href="https://sekisho-phi.vercel.app">Website</a> ·
   <a href="#getting-started">Try locally</a> ·
   <a href="docs/api.md">API reference</a> ·
   <a href="PITCH_PLAN.md">Demo plan</a> ·
@@ -26,7 +27,8 @@
 **Build status:** the gate, contracts, Python SDK, agents, MCP server, demo scripts,
 and console are implemented and locally tested. You can explore the console without
 credentials. Live deployment and the complete testnet rehearsal are still pending;
-see the [readiness checklist](docs/readiness.md). No public live demo is claimed.
+see the [readiness checklist](docs/readiness.md). The [public website](https://sekisho-phi.vercel.app)
+introduces the project; it is not a hosted payment console.
 
 <details>
 <summary>Table of contents</summary>
@@ -167,6 +169,7 @@ Vendor Agent ← payee hook ← payer wallet  │                 ├ ALLOW → 
 | [`sdk/sekisho/`](sdk/sekisho/) | Gate client and x402 hooks |
 | [`agents/`](agents/) | Treasury buyer, vendor APIs, rogue payer scenario |
 | [`mcp/server.py`](mcp/server.py) | Gate tools for MCP agents |
+| [`website/`](website/) | Public static landing page deployed on Vercel |
 | [`dashboard/`](dashboard/) | Decisions, review queue, audit, treasury, policy, integration |
 | [`scripts/`](scripts/) | Setup, scanning, smoke checks, demo control |
 
