@@ -15,8 +15,25 @@ From the repository root:
 python3 -m http.server 3112 --bind 127.0.0.1 --directory website
 ```
 
-Open `http://localhost:3112`. This is static HTML/CSS; there is no dependency installation
-or build step. The source assets and font provenance are in [docs/assets](../docs/assets/README.md).
+Open `http://localhost:3112`. This is static HTML/CSS with native JavaScript modules; there is no dependency
+installation or framework build. The guided simulation never contacts the gate. The source assets and font provenance are in [docs/assets](../docs/assets/README.md).
+
+## Keep examples current
+
+Canonical synthetic cases and scenario copy live in `dashboard/fixtures/`. The
+website ships generated excerpts without live flags, addresses, or transaction hashes.
+The displayed and downloadable Python example comes from the tested SDK example.
+
+```bash
+python3 scripts/build_website_demo.py
+python3 scripts/build_website_demo.py --check
+node --test scripts/test-website-demo.mjs
+.venv/bin/python -m pytest sdk/tests/test_website_example.py -q
+```
+
+Use native browser controls to verify all scenarios, back/restart, release/refund,
+scenario resets, keyboard focus, copy/download, and mobile layout. With JavaScript
+unavailable, the site retains its setup link and readable SDK code.
 
 ## Deploy
 
@@ -35,7 +52,7 @@ redeployment. Keep the Vercel project root set to `website` if Git integration i
 
 ## Verification
 
-Desktop and 390px mobile layouts reviewed in Chromium; no horizontal overflow.
+Desktop and 390px mobile layouts and guided flows reviewed in Chromium; no horizontal overflow.
 Verified heading structure, asset paths/dimensions, section anchors, keyboard FAQ,
 source/readiness links, and fixture labels. Reduced motion disables smooth scrolling
 and transitions; forced colors retain system semantics. Verify production `/`, asset

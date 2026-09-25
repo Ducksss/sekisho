@@ -3,8 +3,9 @@
 Updated 26 September 2026. Code and local verification do not establish live readiness.
 
 The public project website is deployed at [getsekisho.vercel.app](https://getsekisho.vercel.app).
-It provides project information, labelled fixture screenshots, and setup links. It does
-not host the gate or an interactive payment console.
+It provides a labelled, browser-only walkthrough of four synthetic screening scenarios,
+fixture screenshots, a tested SDK example, and setup links. It does not host the gate
+or execute payments. The console theme now follows the website palette.
 
 ## Implemented locally
 
@@ -28,6 +29,20 @@ treasury balance/exposure/counterparty views, policy and integration pages.
   degraded health and fail-closed HOLD. No signatures or transactions are produced.
 - Shared design audit passes; design-document lint has no errors (token-reference
   warnings remain because CSS, rather than the document, owns runtime mappings).
+
+## Website improvement verification (26 September)
+
+The SDK suite passes all 54 tests, including seven tests for
+`sdk/examples/screen_before_signing.py`: all three verdicts,
+HTTP errors, timeout, and malformed response. Three browser-demo state tests pass.
+The generated website excerpts and downloadable example match their source files.
+Console production build and lint pass after the shared theme update. Browser QA
+covers desktop and 390px mobile flows, keyboard use, scenario resets, simulated release
+and refund, BLOCK, and fail-closed HOLD. These are synthetic demonstrations.
+
+`make check-setup` still reports 6/20 checks passing. Intercepta, Blockscout, MultiBaas,
+webhook configuration, role-wallet keys and clean/mixer vendor addresses are absent.
+No live proof or recording can be produced from this checkout yet.
 
 ## Required before calling this complete
 

@@ -28,7 +28,8 @@
 and console are implemented and locally tested. You can explore the console without
 credentials. Live deployment and the complete testnet rehearsal are still pending;
 see the [readiness checklist](docs/readiness.md). The [public website](https://getsekisho.vercel.app)
-introduces the project; it is not a hosted payment console.
+includes a guided synthetic payment walkthrough and a tested SDK example. Live
+screening and payment execution still require local setup.
 
 <details>
 <summary>Table of contents</summary>
