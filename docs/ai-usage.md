@@ -24,6 +24,8 @@ kept up to date as the build goes.
   tested fail-closed SDK example, and shared console theme changes. It refreshed
   actual fixture screenshots and rechecked desktop/mobile behavior. Live proof remained
   blocked on service credentials and fresh funded testnet wallets.
+  Prompt 15 connected the existing Vercel project to GitHub, configured `website/`
+  as its publishing root, and documented automatic production and preview deployments.
 
 - **Claude Code** (Claude Opus 5.5, in the Claude desktop app): the lead engineering
   agent. It split the PRD into workstreams, ran parallel subagents for research and

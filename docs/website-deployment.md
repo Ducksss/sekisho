@@ -33,5 +33,9 @@ keys, or an interactive mock payment service. Live-stack readiness remains in
 ## Operations
 
 Use the commands in [website/README.md](../website/README.md) to preview and redeploy.
-CLI deployment is configured; automatic Git deployment has not been enabled. No
-custom domain, paid upgrade, analytics, or external form submission was added.
+Automatic Git deployment was enabled on 26 September 2026. Vercel is connected to
+`Ducksss/sekisho`, with `main` as the production branch and `website` as the project
+root. Pushes to `main` publish the public site after a successful deployment; other
+branches create preview deployments. Automatic production domain assignment is enabled,
+and no ignored-build command is configured. No paid upgrade, analytics, or external
+form submission was added.

@@ -37,18 +37,27 @@ unavailable, the site retains its setup link and readable SDK code.
 
 ## Deploy
 
-Vercel project: `sekisho`, scope: `ducksss-projects`. Publish only this directory.
+Vercel project: `sekisho`, scope: `ducksss-projects`, connected to `Ducksss/sekisho`.
+The project root is `website`, with static output `.` and no framework build.
+
+Push to `main` to update [getsekisho.vercel.app](https://getsekisho.vercel.app)
+automatically after a successful deployment. Pushes to other branches create preview
+deployments. The Python gate, operational dashboard, and contracts are outside the
+publishing root.
+
+For a manual fallback, run from the repository root; Vercel applies the configured
+`website` root:
 
 ```bash
-vercel link --project sekisho --scope ducksss-projects --cwd website
-vercel deploy --dry --json --cwd website
-vercel deploy --prod --scope ducksss-projects --cwd website
+vercel link --project sekisho --scope ducksss-projects
+vercel deploy --dry --json
+vercel deploy --prod --scope ducksss-projects
 ```
 
 Inspect the dry-run file list before publishing. `.env*` and `.vercel/` are ignored;
 no environment variables or secrets are required by this site. The command creates a
-static production deployment. CLI publication does not automatically enable Git-based
-redeployment. Keep the Vercel project root set to `website` if Git integration is added.
+static production deployment. Keep the Vercel project root set to `website` for both
+Git integration and CLI publication.
 
 ## Verification
 

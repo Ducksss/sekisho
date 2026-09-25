@@ -55,3 +55,6 @@ Vercel publication requested after the brand direction.
 
 [14 — Guided product demo](14-guided-product-demo.md) records the approved website,
 SDK example, console refinement, and live-proof readiness check.
+
+[15 — Automatic Git deployments](15-automatic-git-deployments.md) records the GitHub
+connection, static publishing root, and push-triggered deployment verification plan.
