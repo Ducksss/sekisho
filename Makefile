@@ -7,7 +7,7 @@ S ?= S1
 
 .DEFAULT_GOAL := help
 .PHONY: help install wallets sync-agents test contracts-test deploy setup-multibaas tunnel \
-	gate vendors agent control mcp dashboard scan demo-setup demo demo-reset smoke
+	gate vendors agent control mcp dashboard scan demo-setup demo demo-reset smoke check-setup
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  %-16s %s\n", $$1, $$2}'
@@ -78,6 +78,9 @@ demo-reset: ## Archive cases and clear officer overrides (DEMO_MODE only)
 
 smoke: ## Pre-demo health check
 	$(PY) scripts/smoke.py
+
+check-setup: ## Offline configuration checklist (never prints secrets)
+	$(PY) scripts/check_setup.py
 
 # ---------- tests ----------
 
