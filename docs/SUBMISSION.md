@@ -162,15 +162,17 @@ the video. Correct these claims before recording:
 | "It matches the chain" | "It matches the hash recorded onchain" (the gate relays the MultiBaas event) |
 | "What if Intercepta or the gate is down? It fails closed" | True for Intercepta and the gate; an oracle or trace failure alone doesn't hold the payment |
 
-Also have an answer ready for "who can release escrowed funds?": the officer's onchain key signs
-the release, but the gate's decision endpoint has no authentication yet.
+If asked who can release escrowed funds: only the officer role's key can sign a release onchain,
+and the escrow refuses payees without a fresh ALLOW. The demo gate's decision endpoint has no
+login; a deployment would put it behind the bank's single sign-on.
 
 ## Before submitting
 
 1. Get the Intercepta key (intercepta.io/ethglobal; keys can take hours) and a MultiBaas
    deployment; `make check-setup` should pass 20 of 20.
 2. Fund fresh Base Sepolia wallets (gas and Circle faucet USDC), then deploy and link the contracts.
-3. Pick the clean and mixer-exposed vendors from real Intercepta profiles (`scripts/scan_candidates.py`).
+3. Pick the clean and mixer-exposed vendors from real Intercepta profiles (`scripts/scan_candidates.py`),
+   starting from the test addresses Intercepta pinned in its ETHGlobal Discord channel.
 4. Rehearse S1 to S5, and S6 separately. Capture one raw Intercepta response with its latency.
 5. Record the video: human voice, 2 to 4 minutes, at least 720p, no speed-up.
 6. Fill the README TODOs (video link, contract addresses, one case per verdict, team handles,
