@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     intercepta_quota: int = 1000
     intercepta_warn_at: int = 800
     intercepta_reserve_from: int = 950
+    # P1 checks; when off, the check is recorded as "skipped" ("disabled by config")
+    screen_token: bool = True
+    screen_impersonation: bool = True
 
     # Source-of-funds data
     blockscout_base: str = "https://api.blockscout.com"
