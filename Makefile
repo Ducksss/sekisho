@@ -6,7 +6,7 @@ SEKISHO_URL ?= http://localhost:8000
 S ?= S1
 
 .DEFAULT_GOAL := help
-.PHONY: help install wallets sync-agents test contracts-test deploy setup-multibaas tunnel \
+.PHONY: help install wallets sync-agents test contracts-test deploy setup-multibaas tunnel tunnel-ngrok \
 	gate vendors agent control mcp dashboard scan capture demo-setup demo demo-reset smoke check-setup
 
 help: ## List targets
@@ -41,6 +41,9 @@ setup-multibaas: ## Link USDC, register the webhook, save the Event Queries
 
 tunnel: ## Public URL for MultiBaas webhooks (then: make setup-multibaas)
 	cloudflared tunnel --url http://localhost:8000
+
+tunnel-ngrok: ## Webhook-only public URL: forwards POST /webhooks/multibaas, 404 for the rest
+	ngrok http 8000 --traffic-policy-file scripts/ngrok-webhook-only.yml
 
 # ---------- services ----------
 

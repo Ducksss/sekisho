@@ -41,7 +41,9 @@ mainnet RPCs are used **read-only** for screening. Never send mainnet transactio
    and escrow addresses in `.env`. The script deploys and links through forge-multibaas;
    see [contract deployment details](../contracts/README.md).
 2. Start `make gate`, then `make tunnel` in another terminal. Set the tunnel's HTTPS
-   URL as `PUBLIC_GATE_URL` in `.env`.
+   URL as `PUBLIC_GATE_URL` in `.env`. `make tunnel` exposes every gate endpoint;
+   `make tunnel-ngrok` forwards only `POST /webhooks/multibaas` and answers 404 for
+   the rest, including the officer decision endpoint, which has no login.
 3. Run `make setup-multibaas` to link USDC, register the webhook and create the
    `exposure_by_payee` and `released_by_payee` Event Queries. Restart the gate after
    changing its environment, including the webhook secret.
