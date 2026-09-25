@@ -24,6 +24,7 @@ kept up to date as the build goes.
 | [docs/pitch-deck.md](pitch-deck.md) | The earlier "Wallet Audit Trail" concept that became Sekisho |
 | [docs/api.md](api.md) | Gate API contract, written by the lead agent from PRD 9.11 so the workstreams could run in parallel |
 | [docs/prompts/](prompts/README.md) | Every prompt: the team's instructions to the lead agent and the lead agent's prompts to each subagent |
+| [docs/research/](research/) | Research subagents' memos checking the PRD's API assumptions against real sources (x402 and MCP SDKs; Intercepta, MultiBaas, Blockscout, Chainalysis; agent config conventions), with each correction marked |
 | [AGENTS.md](../AGENTS.md) | Standing instructions that every coding agent in this repo reads |
 
 ## Where AI wrote code
