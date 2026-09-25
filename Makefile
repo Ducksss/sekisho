@@ -18,7 +18,7 @@ install: ## Python venv (gate, sdk, agents), contract libs, dashboard deps
 	test -d .venv || $(PYTHON) -m venv .venv
 	$(PY) -m pip install -q -U pip
 	$(PY) -m pip install -q -r requirements.txt -c constraints.txt
-	git submodule update --init --recursive
+	git submodule update --init
 	cd dashboard && npm install
 
 wallets: ## Generate the four testnet keys into .env (prints addresses only)
@@ -33,8 +33,8 @@ sync-agents: ## Re-link shared skills and regenerate MCP configs from .agents/
 contracts-test: ## forge test (expect 18 passing)
 	cd contracts && $(FORGE) test -vv
 
-deploy: ## Deploy registry + escrow to the contract chain and link them in MultiBaas
-	scripts/deploy_contracts.sh
+deploy: ## Deploy registry + escrow and link them in MultiBaas (ARGS=--no-link, --verify)
+	scripts/deploy_contracts.sh $(ARGS)
 
 setup-multibaas: ## Link USDC, register the webhook, save the Event Queries
 	$(PY) scripts/setup_multibaas.py
