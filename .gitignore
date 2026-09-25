@@ -34,3 +34,6 @@ contracts/broadcast/*/31337/
 # Agent settings (machine-local)
 .claude/settings.local.json
 .claude/worktrees/
+
+# Vercel local project linkage
+.vercel/

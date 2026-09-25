@@ -110,3 +110,8 @@ Verify report. Intercepta evidence descriptions stay verbatim.
 [docs/BRAND-DIRECTION.md](docs/BRAND-DIRECTION.md) records the user-requested Investflow
 reference and its translation to Sekisho's website and assets. It proposes a luminous
 blue checkpoint identity. It does not yet replace the runtime console tokens above.
+
+The public marketing surface is implemented separately in `website/`. Its canonical
+marketing tokens live in `website/styles.css` and follow the brand direction: midnight
+#061234, signal #315bff, ice #eaf2ff, slate #536079, and Inter Tight. It shares original
+assets with `docs/assets/`; the operational console retains its own density and tokens.

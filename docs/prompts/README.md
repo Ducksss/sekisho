@@ -49,3 +49,6 @@ fixture screenshots, GitHub metadata, and publication pass. This pass used no su
 
 [12 — Investflow direction](12-investflow-direction.md) records the user's new visual reference
 and the project-specific design brief.
+
+[13 — Vercel deployment](13-vercel-deployment.md) records the public landing page and
+Vercel publication requested after the brand direction.

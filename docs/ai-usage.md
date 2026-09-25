@@ -17,6 +17,9 @@ kept up to date as the build goes.
   generated an original checkpoint illustration with the built-in imagegen tool. Cover
   typography was composed in HTML and rendered with Chromium. Product screenshots
   are actual fixture-console captures, not generated images.
+  Prompt 13 added the static public website from that direction and verified desktop,
+  mobile, link, and keyboard behavior before Vercel publication. The gate, contracts,
+  and live payment console were not deployed by the website release.
 
 - **Claude Code** (Claude Opus 5.5, in the Claude desktop app): the lead engineering
   agent. It split the PRD into workstreams, ran parallel subagents for research and
