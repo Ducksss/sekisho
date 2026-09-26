@@ -1,6 +1,6 @@
 # Live evidence record
 
-**Status: local paid and refused x402 paths verified; hosted trial, contracts and attestations pending.**
+**Status: contracts deployed; local automatic payment/refusal and indexed attestations verified; operator escrow release/refund verified. Hosted browser and provider-triggered HOLD remain pending.**
 Keys were added during the finalisation pass. Two 0.05 test-USDC payments settled (0.10 total); no
 registry/escrow deployment or attestation transaction has been sent.
 Do not replace pending items with unit-test results or simulation screenshots.
@@ -124,3 +124,35 @@ placeholder hashes, stale transactions and mismatched transfers. This follows th
 Both already-settled receipts pass the revised real-RPC verifier. A fresh payment
 immediately after settlement has not been rerun with this revision; no third payment
 was sent. Regression tests model provisional-to-canonical receipt changes.
+
+## Funded deployment and automatic rehearsal — 26 September, 12:00–12:06 UTC
+
+Base Sepolia registry `0x8a15c703B4A5Dc972BDBf48d3fAC73B5DCdEa572` (block47327855)
+and escrow `0xf81852231BD2C57d0Dd7543162B7fe02ebC81CbE` (block47327856) are deployed
+and linked to MultiBaas. Screener/officer roles and token/registry wiring verified.
+
+- New clean case `cs_01M3ESEP86NDM0XQH3BN11WWCE`, decided12:01:20UTC: liveALLOW,
+  automaticPAID, seller report delivered, all3 S1 assertionspassed.
+  [Payment](https://sepolia.basescan.org/tx/0x7c5058cec305d01d104a75864f15a5c1f949525f4c3f6d6c8ec2fb35c7e07f20),
+  [registry attestation](https://sepolia.basescan.org/tx/0x209080a68581703b5df98103e71b0431d815838d2f23ffb199216e4199e1d89b).
+- New refused case `cs_01M3ESF7MBQPHNM6V782975PMS`, decided12:01:41UTC: score100,
+  BLOCK, no payment signature/transaction, all3 S3 assertionspassed.
+  [Registry attestation](https://sepolia.basescan.org/tx/0xef10ebc5e52f5692f15886e5b687f6cb4eec6341c65880e93199a93ce8984a40).
+- Both attestation receipts confirmed and exact corresponding `Screened` events
+  retrieved from MultiBaas. Refusal still creates an audit transaction.
+- Separate **operator-driven escrow rehearsal**, not provider-generated HOLD: two
+  0.05testUSDC deposits to own deployer payee; premature release rejectedNotCleared;
+  one [release after officer clearance](https://sepolia.basescan.org/tx/0x5f434f2177dfbe6fdba401101708071afeaa27d367e1843de4c5b913bc2cb4e8),
+  one [refund](https://sepolia.basescan.org/tx/0x15e342f5c18a3cb3982f626dec54f8e492682aa8a89b77fffe631104428e15f7).
+  Indexed Held/Released/Refunded events observed, final statusesRELEASED/REFUNDED,
+  totalHeld0 and remaining temporary allowance0. Full gate S2 remains unverified.
+
+Live integration findings: ABI-only MultiBaas uploads require `bin: "0x"`; fixed and
+linked USDC. This deployment's tx_hash event filter returned empty for indexed events;
+a bounded block/transaction-index fallback with exact local hash matching recovered
+them. Approval became visible in the receipt RPC before MultiBaas could estimate a
+deposit; the existing approval was allowed to propagate, not sent again.
+
+Earlier failed rehearsals above are historical and retained for transparency. They
+do not supersede this new successful automatic S1 run. Webhook delivery and hosted
+browser evidence still require the deployed service and credential configuration.

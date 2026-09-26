@@ -110,3 +110,10 @@ and exercised two 0.05 test-USDC x402 purchases and one blocked purchase. Both s
 transactions needed later receipt-report reconciliation; no extra signatures were
 created for reconciliation. Contract attestation and hosted execution remain pending.
 Codex updated the deck and public evidence panel with measured results and limitations.
+
+After explicit team authorization and funding, Codex deployed the existing registry
+and escrow on Base Sepolia, assigned roles, linked the contracts/USDC in MultiBaas,
+and ran live clean/refused purchases plus an explicitly operator-driven escrow
+rehearsal. Live integration exposed ABI upload and event-filter issues; Codex fixed
+them with regression tests. A bounded webhook ingress was added for the hosted
+runner while preserving private operator routes. No mainnet writes occurred.

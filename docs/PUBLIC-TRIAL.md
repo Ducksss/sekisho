@@ -86,12 +86,12 @@ operator network/tunnel for the console. The public trial is not a replacement f
 its audit/review screens. Do not expose `/v1/screen`, `/v1/demo/reset` or the treasury
 controller without their own quota/access boundary.
 
-If webhook delivery is required to the hosted gate, expose only the authenticated
-`POST /webhooks/multibaas` route through a separately configured proxy and retain
-signature verification. Do not publish every gate route to obtain webhook ingress.
-Receipt and onchain attestation checks remain separate from webhook delivery.
-The initial Render blueprint exposes no gate routes; hosted webhook ingress and the
-private operator-console connection remain deployment tasks.
+The restricted runner exposes only `POST /webhooks/multibaas` for webhook ingress,
+forwarding the unchanged body and signature headers to the private gate. The gate
+verifies HMAC; the proxy limits body size/time and does not forward operator credentials.
+Register the final HTTPS service URL in MultiBaas after deployment. Receipt and
+onchain attestation checks remain separate from webhook delivery.
+The private operator-console connection remains a separate deployment task.
 
 ## Verification
 

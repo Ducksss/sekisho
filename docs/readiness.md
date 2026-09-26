@@ -159,3 +159,13 @@ confirmation after a fresh payment remains unverified; no third purchase was sen
 
 Final combined Python run after receipt refresh: **473 passed**. Five trial state
 tests also pass; root visually reviewed the recorded evidence panel.
+
+### Funded deployment and MultiBaas rehearsal
+
+Registry/escrow now deployed and linked on Base Sepolia. Fresh S1 and S3 each pass
+all3 assertions; both Screened attestations are confirmed and indexed. Automatic
+receipt confirmation succeeds on the fresh S1. Operator-driven escrow deposit,
+premature-release rejection, officer-clearance release and refund also pass;
+provider-triggered full-gate HOLD remains pending. See LIVE-EVIDENCE.md for receipts.
+Render private GitHub connection is fixed and service provisioning started; hosted
+credentials, webhook delivery and browser acceptance remain pending.
