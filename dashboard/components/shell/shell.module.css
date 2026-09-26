@@ -357,3 +357,13 @@
     display: none;
   }
 }
+
+/* Editorial brand shared with the public site. */
+.topbar { background: var(--brand-header); }
+.wordmark { font-weight: var(--weight-heavy); letter-spacing: -0.035em; }
+.navLink { margin-block: var(--space-2); border-radius: var(--radius-pill); border-bottom: 0; }
+.navLink:hover { background: var(--surface); }
+.navLink[aria-current="page"] { background: var(--accent); color: var(--accent-ink); }
+.brandSeal { border-radius: var(--radius-sm); }
+@media (forced-colors: active) { .topbar { background: Canvas; } .navLink[aria-current="page"] { outline: 2px solid Highlight; } }
+@media (max-width: 1380px) { .product { display: none; } }

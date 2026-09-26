@@ -3,25 +3,23 @@
  * used by the console is defined here. Branding is a token swap: change the values in the
  * "Palette" and "Type" blocks (or map the semantic tokens to brand tokens) and nothing else.
  *
- * Direction: an inspection office for agent payments. Midnight and signal blue
- * connect the console to the public website; the three verdict colours are the
- * only other saturated hues and are reserved for verdicts (always with an icon and a label).
- * Seals (判) borrow the checkpoint's stamp. Type is Atkinson Hyperlegible, designed for
- * legibility at distance: this console runs on a projector.
+ * Direction: warm paper, vivid violet actions, coral and citrus brand accents.
+ * Matches the public website. Green, amber and red remain semantic verdict colours.
+ * Fixture labels stay explicit; body and monospace fonts retain their legibility.
  */
 
 :root {
   /* ---------- Palette (raw values: swap these for branding) ---------- */
-  --palette-paper: #f4f7fc; /* page background, cool paper */
-  --palette-white: #ffffff;
-  --palette-ink: #061234; /* sumi ink */
-  --palette-slate: #536079; /* secondary text */
-  --palette-mist: #dce3f0;
-  --palette-mist-strong: #8897b2;
-  --palette-mist-faint: #e9eef7;
-  --palette-ai: #315bff; /* signal blue: actions */
-  --palette-ai-deep: #2445d8;
-  --palette-ai-wash: #eaf2ff;
+  --palette-paper: #fff8ed; /* page background, cool paper */
+  --palette-white: #fffcf7;
+  --palette-ink: #261b35; /* sumi ink */
+  --palette-slate: #665c70; /* secondary text */
+  --palette-mist: #d9cce5;
+  --palette-mist-strong: #9c89ae;
+  --palette-mist-faint: #eee5f3;
+  --palette-ai: #6438ce; /* signal blue: actions */
+  --palette-ai-deep: #4c269f;
+  --palette-ai-wash: #eee3ff;
   --palette-rokusho: #0f6e47; /* verdigris green: ALLOW */
   --palette-rokusho-wash: #e1f2e9;
   --palette-yamabuki: #8a5700; /* dark amber text: HOLD */
@@ -33,10 +31,17 @@
   --palette-violet: #6a2fb0; /* fixture banner only */
   --palette-violet-deep: #56238f;
 
+  --brand-coral: #b33d23;
+  --brand-coral-wash: #ffe0d4;
+  --brand-citrus-wash: #fff0bc;
+  --brand-lavender: #e2ceff;
+  --brand-header: linear-gradient(115deg, #f5e9ff, #fff2da);
+  --brand-page: radial-gradient(ellipse at 100% 0%, #eee0ff 0, transparent 48%);
+
   /* ---------- Semantic colour tokens ---------- */
   --page: var(--palette-paper);
   --surface: var(--palette-white);
-  --surface-sunken: #f5f7fa;
+  --surface-sunken: #f5edfa;
   --surface-inverse: var(--palette-ink);
   --text: var(--palette-ink);
   --text-inverse: var(--palette-white);
@@ -87,7 +92,7 @@
 
   /* ---------- Type ---------- */
   --font-heading: "Inter Tight", system-ui, sans-serif;
-  --weight-heading: 550;
+  --weight-heading: 760;
   --font-sans: "Atkinson Hyperlegible Next Variable", "Atkinson Hyperlegible Next", system-ui,
     -apple-system, "Segoe UI", sans-serif;
   --font-mono: "Atkinson Hyperlegible Mono Variable", "Atkinson Hyperlegible Mono", ui-monospace,
@@ -132,8 +137,8 @@
   /* ---------- Shape ---------- */
   --radius-xs: 3px;
   --radius-sm: 6px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
   --radius-pill: 999px;
   --border-width: 1px;
   --border-width-strong: 2px;
