@@ -39,7 +39,6 @@ function Kpi({
 export function KpiStrip() {
   const { data: m, error } = useMetrics();
   const window = m?.window === "since_reset" ? "since reset" : m?.window;
-  const protectedUsd = m ? m.value_held_usd + m.value_blocked_usd : null;
   const used = m?.intercepta_calls_used ?? null;
   const quota = m?.intercepta_quota ?? null;
 
@@ -47,14 +46,14 @@ export function KpiStrip() {
     <>
       <section className={styles.kpis} aria-label="Key figures">
         <Kpi label="Screened" value={formatInt(m?.screened)} sub={window ? `${formatUsd(m?.value_screened_usd)} ${window}` : "—"} />
-        <Kpi label="Allowed" icon="allow" tone="allow" value={formatInt(m?.allow)} sub="paid or accepted" />
-        <Kpi label="Held" icon="hold" tone="hold" value={formatInt(m?.hold)} sub="for an officer" />
-        <Kpi label="Blocked" icon="block" tone="block" value={formatInt(m?.block)} sub="nothing signed" />
+        <Kpi label="Allowed" icon="allow" tone="allow" value={formatInt(m?.allow)} sub="policy permits signing" />
+        <Kpi label="Held" icon="hold" tone="hold" value={formatInt(m?.hold)} sub="signing paused" />
+        <Kpi label="Blocked" icon="block" tone="block" value={formatInt(m?.block)} sub="policy refuses signing" />
         <Kpi
-          label="Value protected"
-          value={formatUsd(protectedUsd)}
-          sub={m ? `held ${formatUsd(m.value_held_usd)} · blocked ${formatUsd(m.value_blocked_usd)}` : "held + blocked"}
-          title="Value held for review plus value blocked"
+          label="Held request amount"
+          value={formatUsd(m?.value_held_usd)}
+          sub={m ? `Refused requests: ${formatUsd(m.value_blocked_usd)}` : "Request amounts, not losses prevented"}
+          title="Amounts attached to HOLD and BLOCK decisions. Not confirmed escrow balances or proven losses prevented."
         />
         <Kpi
           label="p50 decision time"

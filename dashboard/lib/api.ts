@@ -5,6 +5,7 @@
  */
 import { GATE_URL, TREASURY_CONTROL_URL, USE_FIXTURES } from "./config";
 import { GateError } from "./errors";
+import { operatorHeaders } from "./operator-session";
 import type {
   AuditPage,
   CaseDetail,
@@ -38,7 +39,10 @@ async function send<T>(target: Target, method: Method, path: string, body?: unkn
     res = await fetch(`${base}${path}`, {
       method,
       cache: "no-store",
-      headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+      headers: {
+        ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+        ...(method === "POST" ? operatorHeaders() : {}),
+      },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {

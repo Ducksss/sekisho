@@ -232,6 +232,8 @@ export interface ScreeningDecision {
   amount_usd: number;
   /** Token address on the payment chain. */
   asset: string;
+  /** Recorded payment chain; absent on older fixture snapshots. */
+  payment_chain_id?: number;
   /** Only triggered rules. */
   reasons: Reason[];
   checks: Check[];

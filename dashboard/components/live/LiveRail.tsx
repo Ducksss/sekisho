@@ -45,7 +45,7 @@ function HoldPreview() {
                   {shortAddress(c.counterparty)} · {formatAssetAmount(c.amount, c.asset)}
                 </Link>
                 <span className={styles.railMeta}>
-                  {officerCanDecide(c) ? c.headline : "Waiting for the escrow deposit"}
+                  {officerCanDecide(c) ? c.headline : "Signing paused · no confirmed escrow deposit"}
                 </span>
               </span>
               <span className={styles.railMeta}>{formatAge(c.decided_at, now)}</span>

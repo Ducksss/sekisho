@@ -147,7 +147,7 @@ export function OfficerActions({ c, onChanged }: { c: CaseDetail; onChanged: () 
       <div className={styles.officer}>
         {depositPending ? (
           <p className={styles.muted} role="status">
-            <Icon name="escrow" size={16} /> Waiting for the agent&apos;s escrow deposit. Release and refund unlock when the Held event links the
+            <Icon name="escrow" size={16} /> Signing is paused; no escrow deposit is confirmed. If the agent deposits, release and refund unlock when the Held event links the
             hold to this case.
           </p>
         ) : null}

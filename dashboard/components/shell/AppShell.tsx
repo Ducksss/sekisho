@@ -9,6 +9,7 @@ import { useStreamStatus } from "@/lib/stream";
 import { awaitingOfficer } from "@/lib/cases";
 import { Icon } from "@/components/ui/Icon";
 import styles from "./shell.module.css";
+import { OperatorSession } from "./OperatorSession";
 
 const NAV = [
   { href: "/", label: "Live decisions" },
@@ -151,6 +152,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               ))}
             </nav>
             <div className={styles.status}>
+              {!USE_FIXTURES ? <OperatorSession /> : null}
               <GateHealth />
               <StreamIndicator />
             </div>

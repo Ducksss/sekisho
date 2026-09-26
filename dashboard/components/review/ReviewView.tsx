@@ -36,7 +36,7 @@ export function ReviewView() {
                   <td className="num">{item.risk_score} / 100</td>
                   <td>{item.analyst ? (item.analyst.officer_recommendation === "n/a" ? "No recommendation" : item.analyst.officer_recommendation === "release" ? "Release" : "Refund") : "Note pending"}
                     {item.analyst?.fallback ? <p className={styles.secondary}>Template note</p> : null}</td>
-                  <td>{awaitingDeposit(item) ? "Awaiting escrow deposit" : item.direction === "inbound" ? "Clear or reject payer" : "Release or refund"}</td>
+                  <td>{awaitingDeposit(item) ? "Paused; escrow not confirmed" : item.direction === "inbound" ? "Clear or reject payer" : "Release or refund"}</td>
                   <td><Link href={`/cases/${item.case_id}`} aria-label={`Open case ${item.case_id}`}>Open case</Link></td>
                 </tr>)}
               </DataTable>}
