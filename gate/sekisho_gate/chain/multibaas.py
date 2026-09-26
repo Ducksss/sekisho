@@ -635,15 +635,53 @@ class MultiBaasClient:
         if contract_alias:
             params["contract_address"] = await self.address_of(contract_alias)
         result = await self._request("GET", "/events", params=params, what="list events")
+        if tx_hash and not result:
+            # Some deployments return an empty tx_hash-filtered list despite
+            # indexing the event. The official parameter is still tx_hash; use
+            # a bounded numeric lookup, then enforce the exact hash locally.
+            try:
+                receipt = await self._rpc("eth_getTransactionReceipt", [tx_hash])
+            except MultiBaasError:
+                return []
+            if not isinstance(receipt, dict) or str(receipt.get("transactionHash", "")).lower() != tx_hash.lower():
+                return []
+            block = _hex_or_int(receipt.get("blockNumber"))
+            index = _hex_or_int(receipt.get("transactionIndex"))
+            if block is None or index is None:
+                return []
+            fallback = {k: v for k, v in params.items() if k != "tx_hash"}
+            fallback.update(block_number=block, tx_index_in_block=index)
+            result = await self._request("GET", "/events", params=fallback, what="list events by transaction position")
+            return [parsed for e in (result or []) if isinstance(e, dict)
+                    if (parsed := parse_event(e))["tx_hash"] == tx_hash.lower()]
         return [parse_event(e) for e in (result or []) if isinstance(e, dict)]
 
     async def query_results(self, name: str, *, limit: int = 100) -> list[dict]:
-        """Rows of a saved Event Query (keys are the select aliases, lowercased)."""
-        result = await self._request(
-            "GET", f"/queries/{name}/results", params={"limit": int(limit)}, what=f"query {name}"
-        )
-        rows = result.get("rows") if isinstance(result, dict) else None
-        return [r for r in rows or [] if isinstance(r, dict)]
+        """Complete saved-query rows, paged within MultiBaas's 50-row API ceiling.
+
+        `limit` is the caller's safety ceiling. If more rows exist, raise rather
+        than present a truncated financial aggregate as a complete result.
+        """
+        if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+            raise ValueError("query limit must be a positive integer")
+        collected: list[dict] = []
+        while True:
+            remaining = limit - len(collected)
+            page_size = min(50, remaining) if remaining else 1
+            result = await self._request(
+                "GET", f"/queries/{name}/results",
+                params={"limit": page_size, "offset": len(collected)}, what=f"query {name}"
+            )
+            rows = result.get("rows") if isinstance(result, dict) else None
+            if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows) or len(rows) > page_size:
+                raise MultiBaasError(f"query {name}: invalid rows response")
+            if not remaining:
+                if rows:
+                    raise MultiBaasError(f"query {name}: more than {limit} rows; refusing truncated totals")
+                return collected
+            collected.extend(rows)
+            if len(rows) < page_size:
+                return collected
 
     async def address_of(self, alias: str) -> str:
         if alias in self._aliases:

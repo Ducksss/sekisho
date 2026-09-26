@@ -94,6 +94,10 @@ def test_fresh_deployment_sends_the_right_requests(respx_mock, env_file, capsys)
     # Step 4: ABI upload (rawAbi is a JSON string), alias, link with event sync off.
     up = body(upload)
     assert (up["label"], up["contractName"], up["version"]) == ("erc20", "ERC20", "1.0")
+    # MultiBaas rejects an omitted bytecode value even for an ABI-only upload.
+    # The upload API calls this field `bin`, matching forge-multibaas.
+    assert up["bin"] == "0x"
+    assert up["language"] == "solidity"
     abi = json.loads(up["rawAbi"])
     assert {e["name"] for e in abi} == {"approve", "allowance", "balanceOf", "decimals", "transfer", "Transfer"}
     assert body(alias) == {"alias": "usdc", "address": USDC}

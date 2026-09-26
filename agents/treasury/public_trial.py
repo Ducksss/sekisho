@@ -21,6 +21,8 @@ from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
+import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
 ATOMIC = 50_000
@@ -261,7 +263,7 @@ class LiveRunner:
             await tool.aclose()
 
 
-def create_app(config=None, runner=None):
+def create_app(config=None, runner=None, *, webhook_transport=None):
     config = config or TrialConfig.from_env()
     if runner is None:
         from sekisho_gate.config import get_settings
@@ -279,6 +281,52 @@ def create_app(config=None, runner=None):
 
     app = FastAPI(title="Sekisho public trial", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.add_middleware(CORSMiddleware, allow_origins=[config.origin], allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
+
+    @app.post("/webhooks/multibaas")
+    async def forward_multibaas_webhook(request: Request):
+        # The private gate remains the HMAC verification authority. Only this
+        # exact webhook path is exposed; neither destination nor path is input.
+        max_bytes = 1_048_576
+        timestamp = request.headers.get("x-multibaas-timestamp", "")
+        signature = request.headers.get("x-multibaas-signature", "")
+        if not timestamp or not signature or len(timestamp) > 32 or len(signature) > 128:
+            reject(401, "unauthorized", "Missing or invalid webhook signature headers.")
+        content_length = request.headers.get("content-length")
+        if content_length is not None:
+            try:
+                size = int(content_length)
+            except ValueError:
+                reject(400, "invalid_request", "Invalid content length.")
+            if size < 0:
+                reject(400, "invalid_request", "Invalid content length.")
+            if size > max_bytes:
+                reject(413, "payload_too_large", "Webhook exceeds the body limit.")
+
+        async def bounded_body():
+            chunks, total = [], 0
+            async for chunk in request.stream():
+                total += len(chunk)
+                if total > max_bytes:
+                    reject(413, "payload_too_large", "Webhook exceeds the body limit.")
+                chunks.append(chunk)
+            return b"".join(chunks)
+
+        try:
+            raw_body = await asyncio.wait_for(bounded_body(), timeout=5.0)
+        except asyncio.TimeoutError:
+            reject(408, "request_timeout", "Webhook body was not received in time.")
+        try:
+            async with httpx.AsyncClient(timeout=10.0, follow_redirects=False, trust_env=False,
+                                         transport=webhook_transport) as http:
+                response = await http.post("http://127.0.0.1:8000/webhooks/multibaas", content=raw_body,
+                    headers={"Content-Type": "application/json", "X-MultiBaas-Timestamp": timestamp,
+                             "X-MultiBaas-Signature": signature})
+        except httpx.TimeoutException:
+            reject(504, "gate_timeout", "Webhook verification timed out.")
+        except httpx.HTTPError:
+            reject(502, "gate_unavailable", "Webhook verifier is unavailable.")
+        return Response(content=response.content, status_code=response.status_code,
+                        headers={"Content-Type": response.headers.get("content-type", "application/json")})
 
     def readiness():
         blockers = runner.blockers()

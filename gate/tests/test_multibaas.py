@@ -336,7 +336,7 @@ async def test_query_results_rows(client, respx_mock):
         return_value=httpx.Response(200, json={"status": 200, "message": "success", "result": {"rows": rows}})
     )
     assert await client.query_results("exposure_by_payee") == rows
-    assert route.calls.last.request.url.params["limit"] == "100"
+    assert dict(route.calls.last.request.url.params) == {"limit": "50", "offset": "0"}
 
 
 async def test_health(client, respx_mock):
@@ -408,3 +408,62 @@ async def test_call_write_refuses_other_chains_before_signing_or_http(chain_id, 
             await client.call_write("usdc", "erc20", "transfer", [SUBJECT, "50000"], signer)
     signer.sign_transaction.assert_not_called()
     assert not respx_mock.calls
+
+
+async def test_empty_tx_filter_uses_bounded_numeric_lookup_and_exact_hash(client, respx_mock):
+    from copy import deepcopy
+    sample = json.loads((FIX / "webhook_event_emitted.json").read_text())[0]["data"]
+    tx = sample["transaction"]["txHash"]
+    unrelated = deepcopy(sample)
+    unrelated["transaction"]["txHash"] = "0x" + "ff" * 32
+    events = respx_mock.get(API + "/events").mock(side_effect=[
+        httpx.Response(200, json={"status": 200, "result": []}),
+        httpx.Response(200, json={"status": 200, "result": [sample, unrelated]})])
+    rpc = respx_mock.post(RPC).mock(return_value=httpx.Response(200, json={"jsonrpc": "2.0", "id": 1,
+        "result": {"transactionHash": tx, "blockNumber": "0x2d22a99", "transactionIndex": "0xe"}}))
+    out = await client.list_events(tx_hash=tx, limit=3)
+    assert len(out) == 1 and out[0]["tx_hash"] == tx.lower()
+    assert dict(events.calls[1].request.url.params) == {"limit": "3", "block_number": "47327897", "tx_index_in_block": "14"}
+    assert json.loads(rpc.calls[0].request.content)["method"] == "eth_getTransactionReceipt"
+
+
+@pytest.mark.parametrize("receipt", [None, {}, {"transactionHash": "wrong"}])
+async def test_empty_tx_filter_never_broadens_without_matching_receipt(receipt, client, respx_mock):
+    events = respx_mock.get(API + "/events").mock(return_value=httpx.Response(200, json={"status": 200, "result": []}))
+    respx_mock.post(RPC).mock(return_value=httpx.Response(200, json={"jsonrpc": "2.0", "id": 1, "result": receipt}))
+    assert await client.list_events(tx_hash="0x" + "12" * 32) == []
+    assert events.call_count == 1
+
+
+async def test_query_results_pages_without_losing_rows(client, respx_mock):
+    rows = [{"payee": f"payee-{i}", "total": str(i)} for i in range(73)]
+    def answer(request):
+        start, count = int(request.url.params["offset"]), int(request.url.params["limit"])
+        assert count <= 50
+        return httpx.Response(200, json={"status": 200, "result": {"rows": rows[start:start + count]}})
+    route = respx_mock.get(API + "/queries/exposure_by_payee/results").mock(side_effect=answer)
+    assert await client.query_results("exposure_by_payee") == rows
+    assert [dict(c.request.url.params) for c in route.calls] == [
+        {"limit": "50", "offset": "0"}, {"limit": "50", "offset": "50"}]
+
+
+@pytest.mark.parametrize("available", [100, 101])
+async def test_query_results_ceiling_requires_overflow_probe(available, client, respx_mock):
+    rows = [{"payee": str(i), "total": "1"} for i in range(available)]
+    def answer(request):
+        start, count = int(request.url.params["offset"]), int(request.url.params["limit"])
+        return httpx.Response(200, json={"status": 200, "result": {"rows": rows[start:start + count]}})
+    route = respx_mock.get(API + "/queries/exposure_by_payee/results").mock(side_effect=answer)
+    if available == 100:
+        assert await client.query_results("exposure_by_payee") == rows
+    else:
+        with pytest.raises(MultiBaasError, match="refusing truncated totals"):
+            await client.query_results("exposure_by_payee")
+    assert dict(route.calls.last.request.url.params) == {"limit": "1", "offset": "100"}
+
+
+async def test_query_results_rejects_malformed_rows(client, respx_mock):
+    respx_mock.get(API + "/queries/exposure_by_payee/results").mock(
+        return_value=httpx.Response(200, json={"status": 200, "result": {"rows": [{"total": "1"}, None]}}))
+    with pytest.raises(MultiBaasError, match="invalid rows"):
+        await client.query_results("exposure_by_payee")

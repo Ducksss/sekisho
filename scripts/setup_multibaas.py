@@ -191,6 +191,9 @@ def ensure_erc20(mb: MB, s: Settings) -> None:
     else:
         mb.call("POST", f"/contracts/{label}", {
             "label": label, "contractName": ERC20_CONTRACT_NAME, "version": ERC20_VERSION,
+            # MultiBaas requires non-null bytecode even for an ABI-only library.
+            # `bin` is the upload field used by forge-multibaas; no deployment occurs.
+            "bin": "0x", "language": "solidity",
             "rawAbi": json.dumps(ERC20_ABI),
         })
         _done(mb, f"uploaded contract '{label}' {ERC20_VERSION}")

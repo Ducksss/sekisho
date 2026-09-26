@@ -263,3 +263,83 @@ def test_adapter_success_uses_real_case_view_schema_and_missing_case_fails_close
     result = asyncio.run(LiveRunner(TrialConfig(), settings)("clean", "test-run-2"))
     assert result["status"] == "unconfirmed"
     assert "purchased_data" not in result
+
+
+def webhook_headers(body, secret="test-only-webhook-secret"):
+    import hashlib
+    import hmac
+    ts = "1790424000"
+    return {"X-MultiBaas-Timestamp": ts,
+            "X-MultiBaas-Signature": hmac.new(secret.encode(), body + ts.encode(), hashlib.sha256).hexdigest()}
+
+
+def real_webhook_gate():
+    from fastapi import FastAPI
+    from types import SimpleNamespace
+    from pydantic import SecretStr
+    from sekisho_gate.webhooks import build_router
+    from sekisho_gate.chain.multibaas import verify_webhook_signature
+    gate = FastAPI()
+    services = SimpleNamespace(settings=SimpleNamespace(mb_webhook_secret=SecretStr("test-only-webhook-secret")),
+                               verify_webhook=verify_webhook_signature)
+    gate.include_router(build_router(lambda: services))
+    return gate
+
+
+def test_webhook_proxy_preserves_exact_body_and_real_gate_auth(tmp_path):
+    import httpx
+    raw = b' [ \n ] '
+    app = create_app(config(tmp_path), Runner(), webhook_transport=httpx.ASGITransport(app=real_webhook_gate()))
+    with TestClient(app) as client:
+        success = client.post("/webhooks/multibaas", content=raw, headers=webhook_headers(raw))
+        assert success.status_code == 200 and success.json() == {"ok": True}
+        forged = client.post("/webhooks/multibaas", content=raw, headers=webhook_headers(raw, "wrong-secret"))
+        assert forged.status_code == 401
+        malformed = b'not-json'
+        bad_json = client.post("/webhooks/multibaas", content=malformed, headers=webhook_headers(malformed))
+        assert bad_json.status_code == 400
+        assert bad_json.json()["message"] == "body is not JSON"
+        assert client.post("/webhooks/multibaas", content=raw).status_code == 401
+        assert client.post("/v1/cases/example/decision", json={"action": "release"}).status_code == 404
+        assert client.get("/webhooks/multibaas").status_code == 405
+
+
+def test_webhook_oversize_is_rejected_before_gate(tmp_path):
+    import httpx
+    def never_forward(request):
+        raise AssertionError("Oversized webhook reached gate")
+    app = create_app(config(tmp_path), Runner(), webhook_transport=httpx.MockTransport(never_forward))
+    with TestClient(app) as client:
+        data = b'x' * 1_048_577
+        assert client.post("/webhooks/multibaas", content=data, headers=webhook_headers(data)).status_code == 413
+        # A dishonest length header cannot bypass actual byte counting.
+        assert client.post("/webhooks/multibaas", content=data,
+                           headers={**webhook_headers(data), "Content-Length": "1"}).status_code == 413
+
+
+def test_webhook_downstream_status_and_headers_are_restricted(tmp_path):
+    import httpx
+    seen = []
+    def downstream(request):
+        seen.append(request)
+        return httpx.Response(429, json={"error": "busy"}, headers={"Set-Cookie": "private=value"})
+    app = create_app(config(tmp_path), Runner(), webhook_transport=httpx.MockTransport(downstream))
+    with TestClient(app) as client:
+        result = client.post("/webhooks/multibaas?target=https://evil.example", content=b'[]',
+                             headers={**webhook_headers(b'[]'), "Authorization": "Bearer forbidden"})
+        assert result.status_code == 429 and result.json() == {"error": "busy"}
+        assert "set-cookie" not in result.headers
+        assert str(seen[0].url) == "http://127.0.0.1:8000/webhooks/multibaas"
+        assert "authorization" not in seen[0].headers
+
+
+def test_webhook_downstream_timeout_and_connection_failure(tmp_path):
+    import httpx
+    for failure, expected in [(httpx.ReadTimeout("private details"), 504), (httpx.ConnectError("private details"), 502)]:
+        def downstream(request):
+            raise failure
+        app = create_app(config(tmp_path), Runner(), webhook_transport=httpx.MockTransport(downstream))
+        with TestClient(app) as client:
+            response = client.post("/webhooks/multibaas", content=b'[]', headers=webhook_headers(b'[]'))
+            assert response.status_code == expected
+            assert "private details" not in response.text
