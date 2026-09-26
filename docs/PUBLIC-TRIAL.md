@@ -107,4 +107,7 @@ npm --prefix dashboard run build
 A deployment is accepted only when the browser requests the intended HTTPS backend,
 no secrets or private console routes are exposed, limits survive restart, and one
 real paid purchase plus one live refusal/pause is recorded. Docker build and live
-cloud execution still require a Docker runtime or the connected host build system.
+cloud execution were verified on Render on 26 September 2026. The live Chrome
+payment/refusal, exact attestations and genuine webhook deliveries are recorded in
+LIVE-EVIDENCE.md. Persistent disk is configured; durable-limit restart behavior is
+covered by automated tests, with a post-run cloud restart rehearsal still outstanding.

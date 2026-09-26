@@ -1,11 +1,45 @@
 # Live evidence record
 
-**Status: contracts deployed; local automatic payment/refusal and indexed attestations verified; operator escrow release/refund verified. Hosted browser and provider-triggered HOLD remain pending.**
-Keys were added during the finalisation pass. Two 0.05 test-USDC payments settled (0.10 total); no
-registry/escrow deployment or attestation transaction has been sent.
+**Current status: hosted browser payment and refusal verified, with confirmed registry attestations and genuine MultiBaas webhook delivery. Operator escrow release/refund is verified; a provider-triggered full-gate HOLD remains pending.**
+The dated sections below preserve earlier failures and limitations; they are historical,
+not the current deployment status.
 Do not replace pending items with unit-test results or simulation screenshots.
 
-## Local rehearsal evidence (hosted browser run still pending)
+## Hosted Chrome acceptance — 26 September 2026, 12:28 UTC
+
+Public page: https://sekisho-phi.vercel.app/try/ . Restricted backend:
+https://sekisho-trial.onrender.com . Website commit `cfb4b272e9edbabe8f1956d0e52dd8b0a0c08210`.
+The operator approved server-side credentials and testnet signing; visitors need no wallet or API key.
+
+| Evidence | Clean preset | Flagged preset |
+|---|---|---|
+| Decision UTC | 12:28:16 | 12:28:55 |
+| Case | `cs_01M3EV007YAR0QBM9XM8T86055` | `cs_01M3EV1301FFKZZ9STRDVYKGXA` |
+| Live Quick Scan | score 0, no traits | score 100; known_scammer, sanction_address, blacklist |
+| Sanctions oracle | negative on Ethereum and Base | positive on Ethereum and Base |
+| Result | ALLOW → PAID; exact 0.05 test USDC, seller sample report delivered | BLOCK → REFUSED; no payment signature or payment transaction |
+| Canonical report hash | `0x89b5a42ed9d226dc3f4088dd11bb1c7353f281a874585c8f9a2be1f11800563a` | `0x878ecb256dc5dba0127a0e2ea7a795bd50ec6e0ab952d1c02447c5c28f3440aa` |
+| Hash check | runner verified exact canonical bytes | runner verified exact canonical bytes |
+| Registry event | confirmed Screened matches case/report | confirmed Screened matches case/report |
+| Actual webhook delivered UTC | 12:28:18.325095 | 12:28:58.352609 |
+
+- [Hosted payment receipt](https://sepolia.basescan.org/tx/0xc8f523ae7b729e0f34f9d3bd433a9508a209eb11fa328d8c77424ec021e8d4f7).
+- [Clean attestation](https://sepolia.basescan.org/tx/0x57b2cc0aa1f961a4b3fb724719b83b7791b4d05034e8642f1aa1a3b5e9643a3c).
+- [Refused-decision attestation](https://sepolia.basescan.org/tx/0x7a50948b410acd04deb57d7035097ccda99251f854e892069043fb5863e7dc23).
+
+The first browser request encountered a deployment interruption. Retrying reused the
+same idempotency key; the recorded clean run completed once. A startup oracle timeout
+was preserved in logs; the next startup self-test and both actual trial oracle checks passed.
+The returned market report is labelled sample data, not a live market quote.
+The clean source trace had no priced inbound history; this is not proof of wallet safety.
+The flagged trace reported 4.59% taint of approximately $754.6m sampled inbound value,
+3 of 5 top senders flagged and hop 2 on 2 paths, subject to the report's sampling/pricing limits.
+Both public reports preserve provider evidence; no simulation fallback was used.
+Delivery evidence comes from MultiBaas webhook history (`deliveredAt`) for the exact
+successful attestation transactions, not a fabricated webhook POST.
+Operator routes remain private; unsigned webhook requests return 401.
+
+## Earlier local rehearsal evidence (before contracts and hosting)
 
 | Evidence | Allowed purchase | Refusal or pause |
 |---|---|---|

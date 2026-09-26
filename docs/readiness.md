@@ -2,10 +2,17 @@
 
 Updated 26 September 2026. Code and local verification do not establish live readiness.
 
-The public project website is deployed at [getsekisho.vercel.app](https://getsekisho.vercel.app).
-It provides a labelled, browser-only walkthrough of four synthetic screening scenarios,
-fixture screenshots, a tested SDK example, and setup links. It does not host the gate
-or execute payments. The console theme now follows the website palette.
+The canonical [public trial](https://sekisho-phi.vercel.app/try/) now connects to the
+restricted Render backend. On 26 September at 12:28 UTC, Chrome verified a real
+0.05 test-USDC purchase and a live refusal before signing. Both registry attestations
+confirmed and both genuine MultiBaas webhooks were delivered. See LIVE-EVIDENCE.md.
+The four separately labelled simulations remain available. The operator console stays private.
+
+Current verification: 485 Python tests passed after backend integration; 5 browser-state
+tests passed after wiring the public URL. GitHub CI for 9bbda73 passed all four jobs.
+Render built the Docker image and the live gate uses DEMO_MODE=false. A real
+provider-triggered full-gate HOLD is still unverified; escrow release/refund was a
+separate operator-driven onchain rehearsal. Earlier dated status sections below are historical.
 
 ## Implemented locally
 

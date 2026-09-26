@@ -117,3 +117,11 @@ and ran live clean/refused purchases plus an explicitly operator-driven escrow
 rehearsal. Live integration exposed ABI upload and event-filter issues; Codex fixed
 them with regression tests. A bounded webhook ingress was added for the hosted
 runner while preserving private operator routes. No mainnet writes occurred.
+
+After explicit approval to upload the existing credentials, Codex configured Render
+through the team's Chrome session, connected the public trial URL and exercised the
+actual hosted clean/refused flows in Chrome. The clean preset paid 0.05 test USDC;
+the flagged preset refused signing. Read-only checks independently matched both
+registry attestations and genuine webhook delivery history. Codex updated the public
+proof panel, deployment evidence and pitch materials; provider-triggered full-gate
+HOLD and new narration/video remain distinct unfinished items.
