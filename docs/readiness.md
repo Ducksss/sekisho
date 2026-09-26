@@ -14,7 +14,7 @@ vendor and treasury agents, spoofed-payer runner, MCP, scenario/control scripts,
 and smoke scripts. Console includes live decisions, case review, hold queue, audit,
 treasury balance/exposure/counterparty views, policy and integration pages.
 
-## Local verification
+## Earlier local verification
 
 - Python: 356 tests pass; contracts: 18 pass with `forge test --offline`.
 - Console: production build, lint and 45 report-hash checks pass.
@@ -40,7 +40,7 @@ Console production build and lint pass after the shared theme update. Browser QA
 covers desktop and 390px mobile flows, keyboard use, scenario resets, simulated release
 and refund, BLOCK, and fail-closed HOLD. These are synthetic demonstrations.
 
-`make check-setup` still reports 6/20 checks passing. Intercepta, Blockscout, MultiBaas,
+At that earlier pass, `make check-setup` reported 6/20 checks passing. Intercepta, Blockscout, MultiBaas,
 webhook configuration, role-wallet keys and clean/mixer vendor addresses are absent.
 No live proof or recording can be produced from this checkout yet.
 
@@ -66,3 +66,57 @@ No live proof or recording can be produced from this checkout yet.
 No live credentials or funded wallets were available during the local completion pass.
 No testnet deployment or money-transfer scenario was executed by that pass. API test
 mocks and browser fixtures were used only for automated/local verification.
+
+
+## MVP implementation verification (26 September 2026, latest pass)
+
+The current local source includes payment/decision binding, $1/payment and $5/run
+reservations, Base Sepolia write restrictions, operator authentication, fail-closed
+provider responses, complete deduplication inputs, and verified payment/hold receipts.
+See [HACKATHON-MVP.md](HACKATHON-MVP.md) for the prioritized acceptance checklist.
+
+- Integrated `.venv/bin/python -m pytest -q`: **446 passed**, Python 3.12.14.
+- Foundry `forge test -vv`: **18 passed**, including 256-run fuzz checks.
+- Dashboard production build, TypeScript and ESLint passed; report-hash checks **45 passed**.
+- Local production console: dummy operator token can be set and is cleared on reload.
+  Backend-offline errors render explicitly. This is not a live payment rehearsal.
+- MultiBaas API authentication returned HTTP 200; status confirmed chain **84532**.
+- Four fresh testnet role wallets exist in the ignored, mode-0600 `.env`. At the latest
+  balance check all had zero ETH and the buyer had zero test USDC.
+- Intercepta key and testnet funding are still pending. No contracts were deployed and
+  no live payment, live Intercepta qualification, or indexed-event rehearsal was completed.
+
+The Python tests use mocked upstream providers. Passing tests does not establish sponsor
+qualification. The per-run spending reserve resets on process restart. Human review and
+live S1/S3 evidence remain required. Changes are local and have not been pushed upstream.
+
+## Browser finalisation pass (26 September 2026)
+
+The latest implementation adds a guided `/try/` simulation and an opt-in public
+runner with durable limits, isolated results, exact preset payment terms, live/fresh
+screening checks and independent settlement verification. Console wording separates
+policy decisions, request amounts and confirmed financial states. The earlier local
+payment/auth/receipt fixes are included in the finalisation publication, rather than
+only the branding changes.
+
+Fresh verification:
+- Combined Python suite: **459 passed**; final output-copy adjustment rechecked with
+  all **13 public-runner tests passing**.
+- Dashboard production build/TypeScript and ESLint passed; **45 hash checks passed**.
+- Website state tests: **8 passed**; generated examples remain current.
+- Real keyless local public API: readiness unavailable, launch HTTP 503, three
+  privileged routes HTTP 404. No provider requests or payments made.
+- Browser: four labelled scenarios, keyboard activation, correct result focus and
+  390/1280px responsive checks; root additionally inspected the desktop trial.
+- Deployment YAML parses and Python launcher compiles. Docker is unavailable on this
+  machine, so image build/cloud runtime is not yet verified.
+- No contract sources changed in this pass; Foundry is unavailable in the current
+  environment, so prior contract results above are historical, not a fresh rerun.
+- Revised 10-slide deck rendered/inspected with package/layout checks. Live proof
+  remains pending; old narration audio was not synced to the revised script.
+
+Hosting: Render account sign-in completed; repository authorization must include
+Ducksss/sekisho before its persistent service can be created. Blueprint defaults
+public execution off. Credentials, funding, deployed contract/event proof, live
+browser tests and team feedback remain outstanding. See FINALISATION-PLAN.md,
+PUBLIC-TRIAL.md and LIVE-EVIDENCE.md. This is keyless readiness, not sponsor qualification.

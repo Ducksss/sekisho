@@ -122,7 +122,8 @@ The frontend contract, returned by `POST /v1/screen` and used in lists and SSE.
 | `direction` | Direction |
 | `counterparty` | address |
 | `amount`, `amount_usd` | atomic string, number |
-| `asset` | token address on the payment chain |
+| `asset` | canonical Base Sepolia USDC token address |
+| `payment_chain_id` | int; 84532 for payable decisions (legacy missing values become 0 and cannot be signed) |
 | `reasons` | Reason[] (only triggered rules) |
 | `checks` | Check[] |
 | `trace` | TraceResult or null |
@@ -141,7 +142,6 @@ Every ScreeningDecision field, plus:
 | Field | Type |
 |---|---|
 | `source`, `agent_id`, `purpose`, `resource` | strings (`purpose` and `resource` may be `""`) |
-| `payment_chain_id` | int |
 | `untrusted_context` | string or null, verbatim counterparty text |
 | `payment_tx` | tx hash or null (the x402 settlement or direct transfer) |
 | `evidence` | `{"quick_scan": {...} or null, "oracle": {"1": true, "8453": false} or null, "impersonation": {...} or null, "token_scan": {...} or null, "deep_scan": {...} or null}` |
@@ -231,3 +231,25 @@ The console's demo bar drives scenarios through this API. CORS allows `CONSOLE_O
 |---|---|---|
 | `POST /run` | `{"scenario": "S1".."S6" or "all"}` | `{"run_id"}`, or 409 if a run is in progress |
 | `GET /runs/{run_id}` | | `{"run_id", "scenario", "status": "running" or "succeeded" or "failed", "lines": [string], "started_at", "finished_at"}` |
+
+## MVP enforcement updates (26 September 2026)
+
+Officer decisions, demo reset, and treasury `POST /run` require
+`Authorization: Bearer <SEKISHO_OPERATOR_TOKEN>`. Missing server configuration returns
+503; missing or incorrect credentials return 401. The console keeps this independent
+operator token in tab memory only. Provider API keys remain backend-only.
+
+Screening accepts only canonical Base Sepolia USDC and a positive amount. Unsupported
+payment assets/networks return 422 before provider calls. Decision deduplication binds
+the complete screening request, policy, current override and relevant check settings.
+The SDK binds payee, amount, asset, chain and direction before any signing or escrow.
+An empty, 204 or generic 404 Quick Scan response is unavailable evidence, never clean.
+
+Payment reports are accepted only for outbound ALLOW cases after Base Sepolia RPC
+confirms a successful receipt and the exact USDC Transfer from the configured buyer
+to the case counterparty for its amount. The receipt block must not predate the case.
+Transaction reuse across different cases, including archived cases, is rejected.
+Hold reports similarly verify the configured escrow's Held event, hold/case identifiers,
+buyer, payee and amount. Later indexed release/refund states are preserved.
+Receipt mismatches return 409 `receipt_mismatch`; unavailable RPC evidence returns
+502 `receipt_unavailable`. Reporting a transaction hash alone does not change the case.

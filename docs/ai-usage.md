@@ -79,3 +79,27 @@ Codex implemented the user-approved Canvass-inspired branding direction directly
 ## Vibrant shared identity (26 September 2026)
 
 At the user's request, Codex applied a cohesive violet/coral/citrus identity to the public website and dashboard. Shared semantic tokens preserve verdict colours, fixture labels and readable operational data. Changes are CSS and refreshed fixture-console screenshots; payment behavior is unchanged. See [prompt and plan](prompts/19-vibrant-shared-brand.md). Verified dashboard build/type checking, lint, 45 report-hash checks, three website state tests, generated examples and desktop/mobile browser layouts across six dashboard routes.
+
+## Codex MVP implementation pass — 26 September 2026
+
+The team asked Codex to evaluate track viability, implement the minimum viable fixes,
+parallelize independent work, and test the result. The team authorized fresh testnet
+wallets and Base Sepolia transactions only and supplied a backend MultiBaas key locally.
+
+Codex coordinated three parallel workstreams: payment controls, operator authentication,
+and screening correctness. Their changes cover SDK/agent decision binding and spending
+reservations; gate/control authentication and console token entry; screening deduplication
+and missing-provider evidence. Follow-up work added testnet backend write restrictions
+and receipt/event validation before payment/hold status changes. Codex integrated the
+schemas, added minimum setup checks and the MVP checklist, and ran the combined tests.
+The policy YAML bytes were preserved. No provider secrets were committed.
+
+Verification: 446 Python tests, 18 contract tests, dashboard build/lint/type checks,
+45 report-hash checks, and local operator-token browser checks. MultiBaas authentication
+was checked against Base Sepolia. Live screening, deployment and payment remain pending
+credentials/funding. Team review of these changes: **pending**.
+
+
+## Browser trial and finalisation (26 September 2026)
+
+At the team's request, Codex translated the first-user review into an execution plan and coordinated three parallel workstreams: public trial backend, guided website trial, and pitch/narration. Codex also reconciled earlier payment controls, corrected console financial-state wording, prepared persistent hosting configuration and independently reviewed the combined result. The public service defaults disabled; live provider/payment qualification remains pending. See [prompt](prompts/20-product-finalisation.md), [execution plan](FINALISATION-PLAN.md) and [evidence log](LIVE-EVIDENCE.md). Test results and limitations are recorded in readiness.md. Team review: pending.

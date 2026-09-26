@@ -6,6 +6,7 @@ make smoke and the live rehearsal once all local configuration checks pass.
 from __future__ import annotations
 
 import sys
+import argparse
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -22,9 +23,12 @@ def configured(value: object) -> bool:
     return bool(text) and "<" not in text and ">" not in text
 
 
-def check_setup(settings: Settings, root: Path = REPO_ROOT) -> list[tuple[str, bool]]:
+def check_setup(settings: Settings, root: Path = REPO_ROOT, *, minimum: bool = False) -> list[tuple[str, bool]]:
     checks: list[tuple[str, bool]] = []
-    for name in ("intercepta_api_key", "blockscout_api_key", "mb_admin_api_key", "mb_webhook_secret"):
+    required_keys = ["intercepta_api_key", "mb_admin_api_key", "mb_webhook_secret", "sekisho_operator_token"]
+    if not minimum:
+        required_keys.append("blockscout_api_key")
+    for name in required_keys:
         checks.append((name.upper(), configured(getattr(settings, name))))
     for name in ("mb_url", "public_gate_url"):
         value = getattr(settings, name)
@@ -39,13 +43,17 @@ def check_setup(settings: Settings, root: Path = REPO_ROOT) -> list[tuple[str, b
             valid = False
         checks.append((name.upper() + " valid", valid))
     checks.append(("four distinct role wallets", len(addresses) == 4 and len(set(addresses)) == 4))
-    for name in ("vendor_clean_payto", "vendor_mixer_payto", "vendor_sanctioned_payto", "rogue_payer_addr"):
+    counterparties = ["vendor_clean_payto", "vendor_sanctioned_payto"]
+    if not minimum:
+        counterparties += ["vendor_mixer_payto", "rogue_payer_addr"]
+    for name in counterparties:
         checks.append((name.upper() + " valid address", is_address(getattr(settings, name))))
     try:
         payment_chain = settings.x402_chain_id
     except (ValueError, IndexError):
         payment_chain = None
-    checks.append(("testnet contract and payment chains", settings.chain_id in (84532, 11155111, 31337) and payment_chain in (84532, 11155111, 31337)))
+    checks.append(("testnet contract and payment chains", settings.chain_id == 84532 and payment_chain == 84532))
+    checks.append(("canonical Base Sepolia USDC", settings.usdc_address.lower() == "0x036cbd53842c5426634e7929541ec2318f3dcf7e"))
     checks.append(("policy file exists", settings.policy_path.is_file()))
     checks.append(("fault injection off for normal rehearsal", not settings.fault_inject))
     if settings.llm_provider != "none":
@@ -67,13 +75,16 @@ def check_setup(settings: Settings, root: Path = REPO_ROOT) -> list[tuple[str, b
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--minimum", action="store_true", help="S1/S3 qualification setup; trace key and S2/S5 addresses optional")
+    args = parser.parse_args()
     try:
         settings = Settings()
     except Exception:
         # Pydantic's full exception may include input values: never print it here.
         print("FAIL: invalid settings. Check .env types against .env.example; values are hidden.")
         return 1
-    checks = check_setup(settings)
+    checks = check_setup(settings, minimum=args.minimum)
     for label, ok in checks:
         print(f"{'PASS' if ok else 'MISSING/INVALID'}  {label}")
     failed = sum(not ok for _, ok in checks)

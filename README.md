@@ -24,10 +24,19 @@
 
 ![Before the agent signs. A luminous glass checkpoint represents the policy boundary before payment.](docs/assets/banner.png)
 
-**Banks must know who they pay. AI agents are about to pay strangers at machine speed.**
-Sekisho is the checkpoint every agent payment passes through. It screens the other wallet
-before the agent signs, then allows the payment, holds it for a human, or blocks it, and
-attests every decision onchain.
+**An agent can buy a report in seconds. Its owner still needs a policy for whom it pays.**
+Sekisho puts wallet screening inside the payment tool, before signing. Agent teams and
+x402 services get a deterministic ALLOW, HOLD or BLOCK decision, a review path and a
+report that can be checked against an onchain attestation when confirmed.
+
+**Try it:** [guided browser trial](https://sekisho-phi.vercel.app/try/).
+The simulation works without a wallet. Live testnet execution stays unavailable until
+provider access, payment funding and the hosted runner pass the acceptance checks.
+HOLD pauses signing; escrow and payment settlement require separate confirmation.
+
+See the [execution checklist](docs/FINALISATION-PLAN.md),
+[public trial deployment](docs/PUBLIC-TRIAL.md) and
+[live evidence record](docs/LIVE-EVIDENCE.md) for the completion criteria.
 
 **ETHGlobal Tokyo 2026 judges:** [Intercepta integration](#intercepta-screening-at-the-moment-of-decision) ·
 [Curvegrid MultiBaas](#curvegrid-multibaas-every-write-event-and-webhook) · [Team](#team) ·

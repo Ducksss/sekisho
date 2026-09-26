@@ -232,6 +232,7 @@ class Demo:
         self.emit = emit or (lambda line: print(line, flush=True))
         self.sk = sk or SekishoClient(settings.sekisho_url)
         self.gate = gate or httpx.AsyncClient(base_url=settings.sekisho_url.rstrip("/"), timeout=30.0)
+        self.operator_headers = {"Authorization": f"Bearer {settings.sekisho_operator_token.get_secret_value()}"}
         self._tools, self._mb = tools, mb
 
     @property
@@ -414,7 +415,7 @@ async def premature_release(demo: Demo, case_id: str, payee: str) -> Check | Non
         return None
     demo.say("Premature release: releasing before the officer clears the payee in the registry")
     try:
-        resp = await demo.gate.post(f"/v1/cases/{case_id}/decision", timeout=DECISION_TIMEOUT_S,
+        resp = await demo.gate.post(f"/v1/cases/{case_id}/decision", timeout=DECISION_TIMEOUT_S, headers=demo.operator_headers,
                                     json={"action": "release_unchecked",
                                           "note": "Demo: release before the payee is cleared"})
         body = resp.json()
@@ -430,7 +431,7 @@ async def premature_release(demo: Demo, case_id: str, payee: str) -> Check | Non
 async def officer_release(demo: Demo, case_id: str) -> dict[str, Any] | None:
     demo.say("--auto-release: acting as the compliance officer through the gate (rehearsals only)")
     try:
-        resp = await demo.gate.post(f"/v1/cases/{case_id}/decision", timeout=DECISION_TIMEOUT_S,
+        resp = await demo.gate.post(f"/v1/cases/{case_id}/decision", timeout=DECISION_TIMEOUT_S, headers=demo.operator_headers,
                                     json={"action": "release", "note": "Rehearsal auto-release (scripts/demo.py)"})
         body = resp.json()
     except Exception as exc:  # noqa: BLE001
@@ -724,7 +725,7 @@ async def cmd_setup(demo: Demo) -> int:
 
 async def cmd_reset(demo: Demo) -> int:
     try:
-        resp = await demo.gate.post("/v1/demo/reset", timeout=15.0)
+        resp = await demo.gate.post("/v1/demo/reset", timeout=15.0, headers=demo.operator_headers)
         body = resp.json()
     except Exception as exc:  # noqa: BLE001
         demo.say(f"Reset failed: the gate at {demo.settings.sekisho_url} is unreachable ({type(exc).__name__})")
