@@ -94,3 +94,10 @@ test: ## Python unit tests, contract tests, report-hash test vector
 	$(PY) -m pytest -q
 	cd contracts && $(FORGE) test
 	cd dashboard && npm run -s test:hash
+
+
+public-trial: ## Bounded public trial API on :8200 (disabled until configured)
+	$(PY) -m uvicorn agents.treasury.public_trial:create_app --factory --host 127.0.0.1 --port 8200 --workers 1 --no-access-log
+
+trial-stack: ## Gate + preset vendors + public trial; no automatic payments
+	$(PY) deploy/serve.py
