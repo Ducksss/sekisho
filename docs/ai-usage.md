@@ -69,3 +69,7 @@ kept up to date as the build goes.
 
 Before submission, the team replaces each "pending" with who reviewed it, and confirms that
 the contracts were deployed and tested by the team.
+
+## Editorial website redesign (26 September 2026)
+
+Codex implemented the user-approved Canvass-inspired branding direction directly in the static website: warm paper palette, editorial typography, everyday payment narrative, responsive diagrams, and sourced institutional-risk context. The four synthetic scenarios and generated SDK example were preserved. See [prompt and implementation plan](prompts/18-editorial-website.md). No Canvass artwork or template code was copied; diagrams are original. This pass does not establish live payment or provider validation.
