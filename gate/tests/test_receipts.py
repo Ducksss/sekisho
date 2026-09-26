@@ -109,3 +109,129 @@ async def test_rpc_failure_is_502(respx_mock):
 async def test_same_second_payment_is_accepted(respx_mock):
     mock_rpc(respx_mock, receipt(), timestamp=100)
     await payment(min_timestamp=100.9)
+
+
+@pytest.mark.parametrize("held", [False, True])
+async def test_missing_block_is_retried_without_repeating_transaction(held, respx_mock, monkeypatch):
+    import json
+    calls, sleeps = [], []
+    blocks = iter([None, None, {"timestamp": "0x64"}])
+    async def sleep(delay):
+        sleeps.append(delay)
+    monkeypatch.setattr("sekisho_gate.receipts.asyncio.sleep", sleep)
+    def answer(request):
+        body = json.loads(request.content)
+        calls.append((body["method"], body["params"]))
+        value = next(blocks) if body["method"] == "eth_getBlockByHash" else {
+            "eth_chainId": "0x14a34", "eth_getTransactionReceipt": receipt(held)}[body["method"]]
+        return httpx.Response(200, json={"jsonrpc": "2.0", "id": 1, "result": value})
+    respx_mock.post(RPC).mock(side_effect=answer)
+    assert await (hold() if held else payment()) == receipt(held)
+    assert sleeps == [0.5, 1.0]
+    assert calls == [("eth_chainId", [])] + [("eth_getTransactionReceipt", [TX]),
+        ("eth_getBlockByHash", [BLOCK, False])] * 3
+
+
+async def test_missing_block_retries_exhaust_to_502(respx_mock, monkeypatch):
+    import json
+    sleeps, methods = [], []
+    async def sleep(delay):
+        sleeps.append(delay)
+    monkeypatch.setattr("sekisho_gate.receipts.asyncio.sleep", sleep)
+    def answer(request):
+        method = json.loads(request.content)["method"]
+        methods.append(method)
+        value = {"eth_chainId": "0x14a34", "eth_getTransactionReceipt": receipt(), "eth_getBlockByHash": None}[method]
+        return httpx.Response(200, json={"jsonrpc": "2.0", "id": 1, "result": value})
+    respx_mock.post(RPC).mock(side_effect=answer)
+    with pytest.raises(ReceiptValidationError) as caught:
+        await payment()
+    assert caught.value.status == 502
+    assert sleeps == [0.5, 1.0, 2.0, 4.0]
+    assert methods.count("eth_getBlockByHash") == 5
+    assert methods.count("eth_getTransactionReceipt") == 5
+
+
+@pytest.mark.parametrize("block,status", [({}, 502), ({"timestamp": "not-hex"}, 502), ({"timestamp": "0x63"}, 409)])
+async def test_non_null_bad_block_is_never_retried(block, status, respx_mock, monkeypatch):
+    import json
+    async def no_sleep(delay):
+        raise AssertionError("Only a null block may be retried")
+    monkeypatch.setattr("sekisho_gate.receipts.asyncio.sleep", no_sleep)
+    calls = []
+    def answer(request):
+        method = json.loads(request.content)["method"]
+        calls.append(method)
+        value = {"eth_chainId": "0x14a34", "eth_getTransactionReceipt": receipt(), "eth_getBlockByHash": block}[method]
+        return httpx.Response(200, json={"jsonrpc": "2.0", "id": 1, "result": value})
+    respx_mock.post(RPC).mock(side_effect=answer)
+    with pytest.raises(ReceiptValidationError) as caught:
+        await payment()
+    assert caught.value.status == status
+    assert calls.count("eth_getBlockByHash") == 1
+
+
+@pytest.mark.parametrize("first_hash", [BLOCK, "0x0", "0x" + "0" * 64])
+async def test_provisional_receipt_refreshes_to_new_block_hash(first_hash, respx_mock, monkeypatch):
+    import json
+    canonical_hash = "0x" + "ab" * 32
+    early, final = receipt(), receipt()
+    early["blockHash"], final["blockHash"] = first_hash, canonical_hash
+    receipts = iter([early, final])
+    calls = []
+    async def sleep(delay):
+        assert delay == 0.5
+    monkeypatch.setattr("sekisho_gate.receipts.asyncio.sleep", sleep)
+    def answer(request):
+        body = json.loads(request.content)
+        calls.append((body["method"], body["params"]))
+        if body["method"] == "eth_chainId": value = "0x14a34"
+        elif body["method"] == "eth_getTransactionReceipt": value = next(receipts)
+        else: value = {"timestamp": "0x64"} if body["params"][0] == canonical_hash else None
+        return httpx.Response(200, json={"jsonrpc": "2.0", "id": 1, "result": value})
+    respx_mock.post(RPC).mock(side_effect=answer)
+    assert await payment() == final
+    assert [params for method, params in calls if method == "eth_getTransactionReceipt"] == [[TX], [TX]]
+    assert calls[-1] == ("eth_getBlockByHash", [canonical_hash, False])
+
+
+@pytest.mark.parametrize("mutation", ["wrong_tx", "reverted", "empty_logs", "stale"])
+async def test_refreshed_receipt_is_fully_revalidated(mutation, respx_mock, monkeypatch):
+    import json
+    early, final = receipt(), receipt()
+    early["blockHash"] = "0x0"
+    if mutation == "wrong_tx": final["transactionHash"] = BLOCK
+    if mutation == "reverted": final["status"] = "0x0"
+    if mutation == "empty_logs": final["logs"] = []
+    receipts = iter([early, final])
+    async def sleep(delay): pass
+    monkeypatch.setattr("sekisho_gate.receipts.asyncio.sleep", sleep)
+    def answer(request):
+        method = json.loads(request.content)["method"]
+        if method == "eth_chainId": value = "0x14a34"
+        elif method == "eth_getTransactionReceipt": value = next(receipts)
+        else: value = {"timestamp": "0x63" if mutation == "stale" else "0x64"}
+        return httpx.Response(200, json={"jsonrpc": "2.0", "id": 1, "result": value})
+    respx_mock.post(RPC).mock(side_effect=answer)
+    with pytest.raises(ReceiptValidationError) as caught:
+        await payment()
+    assert caught.value.status == 409
+
+
+async def test_placeholder_receipt_never_counts_as_final_even_without_timestamp(respx_mock, monkeypatch):
+    import json
+    early = receipt()
+    early["blockHash"] = "0x0"
+    sleeps = []
+    async def sleep(delay): sleeps.append(delay)
+    monkeypatch.setattr("sekisho_gate.receipts.asyncio.sleep", sleep)
+    def answer(request):
+        method = json.loads(request.content)["method"]
+        assert method in ("eth_chainId", "eth_getTransactionReceipt")
+        return httpx.Response(200, json={"jsonrpc": "2.0", "id": 1,
+                                       "result": "0x14a34" if method == "eth_chainId" else early})
+    respx_mock.post(RPC).mock(side_effect=answer)
+    with pytest.raises(ReceiptValidationError) as caught:
+        await payment(min_timestamp=None)
+    assert caught.value.status == 502
+    assert sleeps == [0.5, 1.0, 2.0, 4.0]

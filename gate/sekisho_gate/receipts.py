@@ -6,6 +6,7 @@ has no case identifier. These checks never send a transaction.
 """
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import httpx
@@ -71,22 +72,37 @@ async def _receipt(
         raise ReceiptValidationError("Invalid transaction hash")
     if await _rpc(http, rpc_url, "eth_chainId", []) != hex(chain_id):
         raise ReceiptValidationError("Receipt RPC is connected to the wrong chain")
-    receipt = await _rpc(http, rpc_url, "eth_getTransactionReceipt", [normalized])
-    if not isinstance(receipt, dict):
-        raise ReceiptValidationError("Transaction receipt is pending or missing")
-    if (receipt.get("status") != "0x1" or norm_hex32(receipt.get("transactionHash")) != normalized
-            or not norm_hex32(receipt.get("blockHash")) or not isinstance(receipt.get("logs"), list)):
-        raise ReceiptValidationError("Transaction receipt is unsuccessful or malformed")
-    # Fetch its block so a pre-screening historical payment cannot prove this case.
-    if min_timestamp is not None:
-        block = await _rpc(http, rpc_url, "eth_getBlockByHash", [receipt["blockHash"], False])
+    # Flashblock receipts can carry a placeholder or provisional block hash.
+    # Refresh the SAME transaction's receipt on each retry, validating every new
+    # response, so we do not poll an obsolete block hash forever. No writes occur.
+    for attempt, delay in enumerate((0.0, 0.5, 1.0, 2.0, 4.0)):
+        if delay:
+            await asyncio.sleep(delay)
+        receipt = await _rpc(http, rpc_url, "eth_getTransactionReceipt", [normalized])
+        if receipt is None and attempt:
+            continue  # transient disappearance while the preconfirmation seals
+        if not isinstance(receipt, dict):
+            raise ReceiptValidationError("Transaction receipt is pending or missing")
+        block_hash = receipt.get("blockHash")
+        placeholder = block_hash in ("0x0", "0x" + "0" * 64)
+        if (receipt.get("status") != "0x1" or norm_hex32(receipt.get("transactionHash")) != normalized
+                or (not placeholder and not norm_hex32(block_hash)) or not isinstance(receipt.get("logs"), list)):
+            raise ReceiptValidationError("Transaction receipt is unsuccessful or malformed")
+        if placeholder:
+            continue
+        if min_timestamp is None:
+            return receipt
+        block = await _rpc(http, rpc_url, "eth_getBlockByHash", [block_hash, False])
+        if block is None:
+            continue
         try:
             timestamp = int(block["timestamp"], 16)
         except (TypeError, KeyError, ValueError) as exc:
             raise ReceiptValidationError("Receipt block timestamp is unavailable", 502) from exc
         if timestamp < int(min_timestamp):
             raise ReceiptValidationError("Transaction predates this case")
-    return receipt
+        return receipt
+    raise ReceiptValidationError("Receipt block timestamp is unavailable", 502)
 
 
 def _matching_logs(receipt: dict, emitter: str, topic: str, topic_count: int):
