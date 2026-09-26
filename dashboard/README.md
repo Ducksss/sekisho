@@ -1,6 +1,7 @@
 # Sekisho Compliance Console
 
-Next.js App Router console for the gate API. Run all setup from the repository root;
+Private operator console built with the Next.js App Router. It is not the public
+trial and is not exposed by the Render trial service. Run all setup from the repository root;
 see [the main README](../README.md) for live services and testnet configuration.
 
 ```bash
@@ -26,15 +27,19 @@ NEXT_PUBLIC_MAINNET_EXPLORER_URL=https://etherscan.io
 NEXT_PUBLIC_USE_FIXTURES=false
 ```
 
-These values are compiled at build time. Never add admin keys to this file or the browser.
+These values are compiled at build time. Never add provider credentials or wallet
+keys to this file or the browser. Privileged actions require the separate
+`SEKISHO_OPERATOR_TOKEN` configured on the gate/controller. Enter that operator token
+through the console's session control; it stays in tab memory and clears on reload.
+Keep the console and full gate behind an authenticated operator network or tunnel.
 The scenario bar calls the local control API; all compliance and chain data goes through
 the gate. Live mode never falls back to synthetic fixtures on a failed request.
 
 ```bash
-npm run lint
-npm run build
-npm run test:hash
+npm --prefix dashboard run lint
+npm --prefix dashboard run build
+npm --prefix dashboard run test:hash
 ```
 
-Shared appearance and interaction contracts: [DESIGN.md](../DESIGN.md) and
-[UX-CONTRACT.md](../UX-CONTRACT.md). `app/tokens.css` owns runtime design tokens.
+Historical visual reference: [DESIGN.md](../docs/archive/DESIGN.md). Historical interaction reference:
+[UX-CONTRACT.md](../docs/archive/UX-CONTRACT.md). `app/tokens.css` owns runtime design tokens.

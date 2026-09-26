@@ -6,7 +6,7 @@ is tracked separately in [readiness.md](readiness.md).
 ## Local installation
 
 Prerequisites: Python 3.11, Node.js 22 with npm, Foundry, Git, and (for live webhook
-rehearsals) cloudflared. Run commands from the repository root.
+rehearsals) an HTTPS webhook-only ingress. Run commands from the repository root.
 
 ```bash
 make install
@@ -16,7 +16,7 @@ make wallets
 
 Do not overwrite an existing `.env`. `make wallets` creates one when absent, fills
 only empty role keys, and prints addresses only. Fund all four fresh role wallets
-with testnet gas and the treasury buyer with test USDC. Keep keys in `.env` only.
+with testnet gas and the treasury buyer with test USDC. Keep local keys in ignored `.env`; hosted credentials belong in private environment variables.
 
 Fill the service configuration in `.env`:
 
@@ -26,7 +26,7 @@ Fill the service configuration in `.env`:
 | `BLOCKSCOUT_API_KEY` | Source-of-funds history |
 | `MB_URL`, `MB_ADMIN_API_KEY` | MultiBaas on the configured testnet |
 | `PUBLIC_GATE_URL`, `MB_WEBHOOK_SECRET` | Public webhook delivery and verification |
-| `VENDOR_CLEAN_PAYTO`, `VENDOR_MIXER_PAYTO` | Counterparties selected from real scans |
+| `VENDOR_CLEAN_PAYTO`, `VENDOR_SANCTIONED_PAYTO`, optional `VENDOR_MIXER_PAYTO` | Counterparties selected from real scans |
 | `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` | Optional LLM provider; set `LLM_PROVIDER=none` for template notes and deterministic scenarios |
 
 Run `make check-setup` for an offline, secret-safe checklist. A green result checks
@@ -40,10 +40,9 @@ mainnet RPCs are used **read-only** for screening. Never send mainnet transactio
 1. Configure and fund the wallets, then run `make deploy`. Save the printed registry
    and escrow addresses in `.env`. The script deploys and links through forge-multibaas;
    see [contract deployment details](../contracts/README.md).
-2. Start `make gate`, then `make tunnel` in another terminal. Set the tunnel's HTTPS
-   URL as `PUBLIC_GATE_URL` in `.env`. `make tunnel` exposes every gate endpoint;
-   `make tunnel-ngrok` forwards only `POST /webhooks/multibaas` and answers 404 for
-   the rest, including the officer decision endpoint, which has no login.
+2. Start `make gate`. For external webhooks, use the restricted ingress described in
+   [PUBLIC-TRIAL.md](PUBLIC-TRIAL.md), or an equivalent webhook-only reverse proxy.
+   Set its HTTPS URL as `PUBLIC_GATE_URL`; do not expose the full local gate.
 3. Run `make setup-multibaas` to link USDC, register the webhook and create the
    `exposure_by_payee` and `released_by_payee` Event Queries. Restart the gate after
    changing its environment, including the webhook secret.
@@ -67,7 +66,8 @@ mainnet RPCs are used **read-only** for screening. Never send mainnet transactio
 The console defaults to live gate data. Optional `dashboard/.env.local` values are
 shown at the end of `.env.example`. `NEXT_PUBLIC_*` values are compiled at build time;
 rebuild when changing them. Never put service keys in browser environment variables.
-The local demo operator endpoints are not a production authentication boundary.
+Set `SEKISHO_OPERATOR_TOKEN` for privileged actions and enter it in the console.
+Do not put it in `NEXT_PUBLIC_*` values. Keep the gate and console on a private network.
 
 ## Demo and verification
 
@@ -122,24 +122,24 @@ that dev process before starting the normal console. Submitted builds must leave
 
 ## Integration details and limits
 
-**Intercepta:** live direct Quick Scan runs before payer signing and payee acceptance.
-Funder scans are cached; trait descriptions remain verbatim. Failed required scans
-produce at least HOLD. Real captured clean/mixer/sanctioned test profiles still need
-to replace the clearly marked synthetic fixtures in `gate/tests/data/intercepta/`.
-See [service research](research/services.md) for API assumptions; live quota,
-latency and provider feedback must be measured before publishing performance claims.
+**Intercepta:** direct Quick Scan runs before payer signing and payee acceptance.
+Supporting cached checks are labelled. Trait descriptions remain verbatim; missing
+required evidence produces at least HOLD. Synthetic test fixtures belong in unit tests,
+not the live provider path. Current measured results are in [LIVE-EVIDENCE.md](LIVE-EVIDENCE.md).
+Historical interface research is in [archive/research/services.md](archive/research/services.md).
 
-**MultiBaas:** contract linking, composed/signed writes, indexed events, authenticated
-webhooks, and saved Event Queries are implemented. Live contract addresses and deployment
-records are not yet present. Do not publish sample addresses as deployed contracts.
+**MultiBaas:** registry/escrow contracts are deployed and linked on Base Sepolia.
+Contract calls, indexed attestations, genuine webhooks and the operator escrow rehearsal
+are verified. See the [deployment addresses and receipts](LIVE-EVIDENCE.md).
 
-This is a **demo policy**, not legal advice or a certified AML programme. Tracing is
-bounded to one/two hops, with limited history and a configured ETH/USD approximation.
-An ALLOW is a point-in-time decision under that policy, not a safety guarantee. Tornado
-Cash is described as a mixer, not a sanctioned entity. Only testnet value moves.
+**Scope:** S1/S3 are verified hosted flows. S2 is an available rehearsal script, not a
+claim that the full provider-triggered HOLD journey passed. Do not fabricate a provider
+verdict or alter policy simply to demonstrate an expected branch. Fault injection and
+reset require explicit local demo configuration and must not be enabled in the public stack.
 
-## Submission material still to supply
+This is a demo policy, not legal advice or a certified AML programme. Tracing is
+bounded to one/two hops with limited history and a configured ETH/USD approximation.
+An ALLOW is a point-in-time policy decision, not a safety guarantee. Only testnet value moves.
 
-Human review/sign-off, deployed contract links, genuine integration feedback, measured
-live results, team names/social links, screenshots from a live run, and the human-narrated
-backup video. Follow [PITCH_PLAN.md](../PITCH_PLAN.md) for rehearsal and submission preparation.
+For presentation, use the [current demo sequence](DEMO.md). For remaining team and
+publication tasks, use the [submission checklist](SUBMISSION.md).

@@ -6,8 +6,8 @@ SEKISHO_URL ?= http://localhost:8000
 S ?= S1
 
 .DEFAULT_GOAL := help
-.PHONY: help install wallets sync-agents test contracts-test deploy setup-multibaas tunnel tunnel-ngrok \
-	gate vendors agent control mcp dashboard scan capture demo-setup demo demo-reset smoke check-setup
+.PHONY: help install wallets sync-agents test contracts-test deploy setup-multibaas tunnel \
+ gate vendors agent control mcp dashboard scan demo-setup demo demo-reset smoke check-setup public-trial trial-stack
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  %-16s %s\n", $$1, $$2}'
@@ -42,9 +42,6 @@ setup-multibaas: ## Link USDC, register the webhook, save the Event Queries
 tunnel: ## Public URL for MultiBaas webhooks (then: make setup-multibaas)
 	cloudflared tunnel --url http://localhost:8000
 
-tunnel-ngrok: ## Webhook-only public URL: forwards POST /webhooks/multibaas, 404 for the rest
-	ngrok http 8000 --traffic-policy-file scripts/ngrok-webhook-only.yml
-
 # ---------- services ----------
 
 gate: ## Gate API on :8000
@@ -69,9 +66,6 @@ dashboard: ## Compliance console on :3000
 
 scan: ## Screen candidate counterparties; writes scan_results.json
 	$(PY) scripts/scan_candidates.py
-
-capture: ## Capture live Intercepta bodies as the gate's test fixtures (5 calls)
-	$(PY) scripts/capture_intercepta.py
 
 demo-setup: ## Check balances and approve USDC to the escrow
 	$(PY) scripts/demo.py setup

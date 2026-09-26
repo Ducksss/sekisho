@@ -1,11 +1,10 @@
 # Sekisho public website
 
-Live: [getsekisho.vercel.app](https://getsekisho.vercel.app).
+[Website](https://sekisho-phi.vercel.app/) · [Try Sekisho](https://sekisho-phi.vercel.app/try/)
 
-Static brand and project-information site, deployed separately from the operational
-Next.js console. The default /try/ configuration is an explicit simulation and makes no gate requests, wallet connections or payment mutations. An optional limited public runner adapter is disabled until configured.
-All product screenshots retain their synthetic-fixture labels. The live backend and
-contract rehearsal are tracked in [readiness](../docs/readiness.md).
+Static HTML, CSS and native JavaScript modules. The website explains Sekisho and
+provides two live testnet presets alongside four clearly labelled simulations.
+The operational Next.js console is a separate, private application.
 
 ## Preview
 
@@ -15,87 +14,57 @@ From the repository root:
 python3 -m http.server 3112 --bind 127.0.0.1 --directory website
 ```
 
-Open `http://localhost:3112`. This is static HTML/CSS with native JavaScript modules; there is no dependency
-installation or framework build. The guided simulation never contacts the gate. The source assets and font provenance are in [docs/assets](../docs/assets/README.md).
+Open `http://localhost:3112`. No website build or dependency installation is needed.
+The committed `try/config.mjs` points to the hosted public runner; that runner allows
+the canonical production origin. To develop without live requests, temporarily set
+`publicRunnerURL` to an empty string, or configure a separate local runner and its
+allowed origin. Simulations never contact the gate or sign payments.
 
-## Keep examples current
+## Maintain the examples
 
-Canonical synthetic cases and scenario copy live in `dashboard/fixtures/`. The
-website ships generated excerpts without live flags, addresses, or transaction hashes.
-The displayed and downloadable Python example comes from the tested SDK example.
+Synthetic scenario inputs live in `dashboard/fixtures/`; displayed and downloadable
+Python code comes from the tested SDK example. Regenerate excerpts after editing
+these sources:
 
 ```bash
 python3 scripts/build_website_demo.py
 python3 scripts/build_website_demo.py --check
 node --test scripts/test-website-demo.mjs
+node --test website/try/state.test.mjs
 .venv/bin/python -m pytest sdk/tests/test_website_example.py -q
 ```
 
-Use native browser controls to verify all scenarios, back/restart, release/refund,
-scenario resets, keyboard focus, copy/download, and mobile layout. With JavaScript
-unavailable, the site retains its setup link and readable SDK code.
+Keep fixture and sample-content labels visible. Source assets and font provenance
+are documented in [docs/assets](../docs/assets/README.md).
 
-## Deploy
+## Live trial boundary
 
-Vercel project: `sekisho`, scope: `ducksss-projects`, connected to `Ducksss/sekisho`.
-The project root is `website`, with static output `.` and no framework build.
+`try/config.mjs` contains only the public HTTPS backend URL. No provider keys,
+operator tokens, private keys or run capabilities belong in this file.
 
-Push to `main` to update [getsekisho.vercel.app](https://getsekisho.vercel.app)
-automatically after a successful deployment. Pushes to other branches create preview
-deployments. The Python gate, operational dashboard, and contracts are outside the
-publishing root.
+The adapter uses `/public/readiness`, `POST /public/runs` and
+`GET /public/runs/{run_id}`. Readiness must explicitly report live Base Sepolia mode.
+The server selects the payment destination and terms; current evidence determines
+the outcome. A live failure is never silently replaced by a simulated success.
 
-For a manual fallback, run from the repository root; Vercel applies the configured
-`website` root:
+Session and idempotency identifiers use sessionStorage. Pending request keys survive
+ambiguous network failures so retries do not automatically buy again. Run IDs are
+read capabilities and must not be placed in public URLs. Results use textContent,
+not provider-supplied HTML. The page accepts no operator token.
 
-```bash
-vercel link --project sekisho --scope ducksss-projects
-vercel deploy --dry --json
-vercel deploy --prod --scope ducksss-projects
-```
+A transaction link and seller content appear only for a confirmed `paid` result.
+The backend independently checks the exact USDC transfer and the case's payment
+status. Report consistency shown here is a server check, not independent browser
+verification of an onchain attestation. See [deployment and limits](../docs/PUBLIC-TRIAL.md)
+and [recorded live evidence](../docs/LIVE-EVIDENCE.md).
 
-Inspect the dry-run file list before publishing. `.env*` and `.vercel/` are ignored;
-no environment variables or secrets are required by this site. The command creates a
-static production deployment. Keep the Vercel project root set to `website` for both
-Git integration and CLI publication.
+## Deployment and review
 
-## Verification
+The Vercel project uses `website` as its root, static output `.` and no framework
+build. Git integration deploys `main`. The Python backend, dashboard, contracts and
+private environment files are outside that publishing root.
 
-Desktop and 390px mobile layouts and guided flows reviewed in Chromium; no horizontal overflow.
-Verified heading structure, asset paths/dimensions, section anchors, keyboard FAQ,
-source/readiness links, and fixture labels. Reduced motion disables smooth scrolling
-and transitions; forced colors retain system semantics. Verify production `/`, asset
-URLs, and the custom 404 after each deployment.
-
-## Guided browser trial
-
-Open `/try/` for four clearly labelled illustrative branches: allowed, blocked,
-human review, and unavailable evidence. Simulation makes no requests to the gate.
-The timeline separates evidence, policy, signing and settlement. HOLD never implies
-an escrow deposit. Purchased sample content is not live market data.
-
-Run the focused checks with `node --test website/try/state.test.mjs`.
-
-For the live trial, deploy the limited public runner separately, verify its setup
-and set `publicRunnerURL` in `try/config.mjs` to its HTTPS origin. **No secrets belong
-in this file.** Configure the runner's allowed CORS origin for the website. The adapter
-uses `/public/readiness`, `POST /public/runs`, and `GET /public/runs/{run_id}`.
-Readiness must explicitly report live Base Sepolia mode before a run can be requested.
-Two live presets (`clean`, `flagged`) map to the illustrative choices; unavailable
-evidence is simulation-only. Current live evidence controls the actual verdict.
-
-Browser-generated session/idempotency identifiers use sessionStorage. A pending key
-survives an ambiguous request failure, so retry does not automatically duplicate a
-purchase. Never place run capability IDs in public URLs. No privileged operator token
-is accepted by the page. Result data uses textContent, never provider HTML.
-
-Transaction links appear only for runner status `paid` with a valid hash; the runner
-must independently validate the Base Sepolia receipt and exact USDC transfer. Seller
-content is shown only in that confirmed state. Case and canonical-report data are
-rendered only when returned. The report consistency indicator is explicitly a server
-check; it is not an independent browser/onchain attestation verification.
-
-Before enabling the adapter, test the real hosted path including origin restrictions,
-limits, repeat clicks, concurrent requests, provider failures and restarted processes.
-The static site cannot host the gate or its persistent state. No live test is claimed
-by the presence of this UI adapter.
+After deployment, check `/`, `/try/`, asset URLs and the custom 404. Review desktop
+and mobile layouts, keyboard focus, scenario reset/back controls, downloads, and
+reduced-motion behavior. Check both live and simulated labels and ensure a failed
+backend produces a visible unavailable state.

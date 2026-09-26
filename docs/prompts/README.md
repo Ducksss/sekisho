@@ -1,7 +1,8 @@
 # Prompts
 
 ETHGlobal requires the prompts behind AI-generated work to be committed. This folder
-has them all, in the order they were given.
+indexes the recorded development instructions. Paths inside historical prompt text
+reflect the layout at that time; current specifications/plans are in [the archive](../archive/README.md).
 
 ## Team prompts to the lead agent
 
@@ -11,7 +12,7 @@ on Fri 25 Sep 2026, starting at 21:55 JST. The team's instructions, verbatim:
 1. `https://gist.github.com/davidgibsonp/337be9b80b3f03eccd188235c287bb05 use this structure for this repo.`
    (the agent-agnostic repository guide behind `AGENTS.md` and `.agents/`)
 2. `@"PRD (2).md" https://github.com/Ducksss/sekisho build this AML idea.` The PRD is
-   committed as [PRD.md](../../PRD.md), with its companion [PITCH_PLAN.md](../../PITCH_PLAN.md).
+   committed as [PRD.md](../archive/PRD.md), with its companion [PITCH_PLAN.md](../archive/PITCH_PLAN.md).
 3. `u can spawn as many subagents as you want by the way`
 4. Answers to the lead agent's questions: commit small and often and push at each milestone;
    install the toolchain (Foundry, Python venv, npm).
@@ -56,17 +57,16 @@ Vercel publication requested after the brand direction.
 [14 — Guided product demo](14-guided-product-demo.md) records the approved website,
 SDK example, console refinement, and live-proof readiness check.
 
-[15 — Automatic Git deployments](15-automatic-git-deployments.md) records the GitHub
-connection, static publishing root, and push-triggered deployment verification plan.
+## Later development and deployment
 
-## Claude Code submission pass
+- [15 — Automatic Git deployments](15-automatic-git-deployments.md)
+- [16 — Submission positioning](16-submission-positioning.md)
+- [17 — Live stack rehearsal](17-live-stack-rehearsal.md)
+- [18 — Teammate Vercel deploys](18-teammate-vercel-deploys.md)
+- [18 — Editorial website](18-editorial-website.md)
+- [19 — Shared vibrant brand](19-vibrant-shared-brand.md)
+- [20 — Product finalisation](20-product-finalisation.md)
+- [21 — Public release cleanup](21-public-release-cleanup.md)
 
-[16 — Submission positioning](16-submission-positioning.md) records the request to check
-how the submission presents the project, the audit plan, and the documentation-only scope.
-
-[17 — Live stack and rehearsal](17-live-stack-rehearsal.md) records the request to configure
-the live services, deploy and link the contracts, pick the demo counterparties from real
-Intercepta profiles, rehearse S1 to S6 and document only verified results.
-
-[18 — Teammate Vercel deploys](18-teammate-vercel-deploys.md) records the request to let
-teammates' pushes deploy on the Hobby-plan Vercel projects, and the workflow that does it.
+The duplicate historical number 18 is retained to avoid rewriting the recorded prompt
+identity. Authors and creation times still require the team's confirmation in [AI usage](../ai-usage.md).

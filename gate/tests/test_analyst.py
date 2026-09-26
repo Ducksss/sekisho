@@ -26,7 +26,7 @@ GOOD = {
 
 
 def prd_block(heading: str) -> str:
-    prd = (REPO_ROOT / "PRD.md").read_text(encoding="utf-8")
+    prd = (REPO_ROOT / "docs" / "archive" / "PRD.md").read_text(encoding="utf-8")
     start = prd.index("```text\n", prd.index(heading)) + len("```text\n")
     return prd[start : prd.index("\n```", start)]
 

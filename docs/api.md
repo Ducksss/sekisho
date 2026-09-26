@@ -1,15 +1,26 @@
 # Gate API contract
 
-The gate (FastAPI on `:8000`) is the only backend that the console, SDK, agents and MCP
-server talk to. PRD Section 9.11 defines the core schemas. This file restates them with
-types and pins down the shapes the PRD leaves open. It is the contract between three
-implementations:
+The private gate runs FastAPI on port 8000. The console, SDK, agents and MCP server
+use this API. The public trial exposes a separate restricted interface described in
+[PUBLIC-TRIAL.md](PUBLIC-TRIAL.md); it does not proxy `/v1/*`.
 
-- `gate/sekisho_gate/models.py` (pydantic, source of truth at runtime)
-- `sdk/sekisho/models.py` (pydantic, standalone so the SDK installs on its own)
-- `dashboard/lib/types.ts` (TypeScript)
+Schema sources:
 
-Change a field in all three, or not at all.
+- [gate models](../gate/sekisho_gate/models.py): runtime validation and serialization
+- [SDK models](../sdk/sekisho/models.py): standalone client models
+- [console types](../dashboard/lib/types.ts): TypeScript representation
+
+Keep corresponding fields synchronized when changing the API. JSON examples below
+illustrate shapes; they are not live evidence or performance measurements.
+
+## Access boundary
+
+Keep the full gate private. Officer decisions, demo reset and treasury `POST /run`
+require `Authorization: Bearer <SEKISHO_OPERATOR_TOKEN>`. Missing server configuration
+returns 503; missing or invalid credentials return 401. The console holds this
+separate token in tab memory only. Other gate routes are not a tenant-authenticated
+public API. Webhooks authenticate using the MultiBaas HMAC signature, independently
+of the operator token.
 
 ## Conventions
 
@@ -34,7 +45,7 @@ Change a field in all three, or not at all.
 | HoldStatus | `HELD`, `RELEASED`, `REFUNDED` |
 | OfficerAction | `release`, `refund`, `release_unchecked` (DEMO_MODE only) |
 
-Status lifecycle (PRD 9.11): ALLOW `DECIDED → PAID`; outbound HOLD
+Status lifecycle: ALLOW `DECIDED → PAID`; outbound HOLD
 `DECIDED → HELD_ESCROWED → RELEASED | REFUNDED`; inbound HOLD `DECIDED → CLEARED | REJECTED`;
 BLOCK is set to `REFUSED` at decision time.
 
@@ -65,11 +76,14 @@ One entry per triggered policy rule.
 - `risk` and `txs_count` appear only on Intercepta trait reasons.
 
 ### TraceResult
-Exactly as in PRD 9.5 (`chains`, `inbound_usd_traced`, `hop1[]`, `hop2[]`, `taint_pct`,
-`paths[]`, `truncated`, `notes[]`). `trace` is `null` if the trace check failed.
+Contains `chains: int[]`, `inbound_usd_traced: number`, `hop1: TraceHop1[]`,
+`hop2: TraceHop2[]`, `taint_pct: number`, `paths: string[]`, `truncated: boolean` and
+`notes: string[]`. Hop records include addresses, chain IDs, amounts and flags;
+see the runtime models for complete optional fields. `trace` is `null` if its check
+failed.
 
 ### AnalystNote
-The PRD 9.10 fields, plus how the note was produced:
+An explanatory note and the metadata identifying how it was produced:
 
 ```json
 {"headline": "…", "summary": "…", "key_findings": [{"text": "…", "evidence": ["E1"]}],
@@ -149,22 +163,22 @@ Every ScreeningDecision field, plus:
 
 `evidence.quick_scan.traits[]` lists **every** trait, including info ones, each with a
 `class` of `hard_block`, `hold`, `info` or `other`. The raw Intercepta response fields stay
-alongside (PRD 9.11).
+alongside.
 
 ## Endpoints
 
 | Method and path | Request | Response |
 |---|---|---|
-| `POST /v1/screen` | ScreenRequest (PRD 9.11) | ScreeningDecision |
+| `POST /v1/screen` | ScreenRequest (below) | ScreeningDecision |
 | `GET /v1/cases` | query `verdict`, `status`, `direction`, `limit` (default 50, max 100), `cursor` | `{"items": ScreeningDecision[], "next_cursor": string or null}`, newest first, archived cases excluded |
 | `GET /v1/cases/{case_id}` | | CaseDetail, or 404 `not_found` |
 | `POST /v1/cases/{case_id}/payment` | `{"tx_hash", "network"}` | `{"case_id", "status": "PAID"}` |
 | `POST /v1/cases/{case_id}/hold` | `{"hold_id", "deposit_tx"}` | `{"case_id", "status": "HELD_ESCROWED"}` |
 | `POST /v1/cases/{case_id}/decision` | `{"action": OfficerAction, "note": string}` | `{"override_tx", "action_tx", "status"}` (see below) |
 | `GET /v1/reports/{report_hash}` | | exact canonical bytes, `Content-Type: application/json` |
-| `GET /v1/metrics` | | Metrics (PRD 9.12) |
+| `GET /v1/metrics` | | Metrics (below) |
 | `GET /v1/audit` | query `limit` (default 100), `case_id` | `{"items": ChainEvent[]}`, newest first |
-| `GET /v1/treasury` | | Treasury (below), P1 |
+| `GET /v1/treasury` | | Treasury (below) |
 | `GET /v1/policy` | | `{"id", "version", "name", "yaml", "parsed": {...}}` |
 | `GET /v1/quota` | | `{"used", "quota", "remaining", "warn_at", "reserve_from"}` |
 | `GET /v1/stream` | | Server-Sent Events (below) |
@@ -172,13 +186,22 @@ alongside (PRD 9.11).
 | `POST /webhooks/multibaas` | MultiBaas delivery (HMAC verified) | `{"ok": true}`, or 401 |
 | `GET /healthz` | | Health (below) |
 
+### ScreenRequest
+
+Required fields are `counterparty`, `direction`, `amount` and `asset`.
+`payment_chain_id` defaults to `84532`; `source` defaults to `direct`.
+`agent_id`, `purpose` and `resource` default to empty strings, and
+`untrusted_context` defaults to null. Address, amount and enum validation uses the
+runtime models. The gate additionally rejects non-positive amounts, unsupported
+networks and noncanonical payment assets before provider calls.
+
 **Officer decision errors:**
 - 409 `invalid_state`: the case isn't in a decidable state.
 - 409 `<RevertName>` (e.g. `NotCleared`): the contract refused. `message` says which call.
 - 403 `demo_mode_only`: `release_unchecked` outside DEMO_MODE.
 - 502 `chain_error`: MultiBaas or RPC failure.
 
-### Metrics (PRD 9.12)
+### Metrics
 ```json
 {"window": "since_reset", "screened": 14, "allow": 8, "hold": 3, "block": 3,
  "value_screened_usd": 3.4, "value_held_usd": 0.5, "value_blocked_usd": 25.05,
@@ -197,7 +220,9 @@ alongside (PRD 9.11).
                         "total_paid_usd": 0.0, "total_held_usd": 0.5, "cases": 2}],
  "source": "multibaas", "cached_at": "2026-09-26T10:21:40Z", "errors": []}
 ```
-MultiBaas reads and Event Queries are cached for 60 s. A failed read leaves its field
+`exposure_by_payee` is cumulative deposited value from indexed events, not current
+outstanding escrow. Use `escrow_total_held` for outstanding funds. MultiBaas reads and
+Event Queries are cached for 60 s. A failed read leaves its field
 `null` and adds a message to `errors` instead of failing the whole response.
 
 ### SSE (`GET /v1/stream`)
@@ -223,7 +248,7 @@ and a JSON `data` payload. The gate sends a keep-alive comment every 15 s.
 `status` is `ok` when every check passes and `degraded` otherwise. The endpoint always
 returns 200.
 
-## Treasury control API (`agents/treasury/control.py`, `:8100`, P1)
+## Treasury control API (`agents/treasury/control.py`, `:8100`)
 
 The console's demo bar drives scenarios through this API. CORS allows `CONSOLE_ORIGIN`.
 
@@ -232,12 +257,7 @@ The console's demo bar drives scenarios through this API. CORS allows `CONSOLE_O
 | `POST /run` | `{"scenario": "S1".."S6" or "all"}` | `{"run_id"}`, or 409 if a run is in progress |
 | `GET /runs/{run_id}` | | `{"run_id", "scenario", "status": "running" or "succeeded" or "failed", "lines": [string], "started_at", "finished_at"}` |
 
-## MVP enforcement updates (26 September 2026)
-
-Officer decisions, demo reset, and treasury `POST /run` require
-`Authorization: Bearer <SEKISHO_OPERATOR_TOKEN>`. Missing server configuration returns
-503; missing or incorrect credentials return 401. The console keeps this independent
-operator token in tab memory only. Provider API keys remain backend-only.
+## Payment and screening enforcement
 
 Screening accepts only canonical Base Sepolia USDC and a positive amount. Unsupported
 payment assets/networks return 422 before provider calls. Decision deduplication binds

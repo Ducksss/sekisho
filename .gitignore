@@ -22,10 +22,10 @@ __pycache__/
 *.db-wal
 scan_results.json
 
-# Foundry build output and local-chain (Anvil) broadcasts
+# Foundry build output and local broadcast artifacts
 contracts/out/
 contracts/cache/
-contracts/broadcast/*/31337/
+contracts/broadcast/
 
 # Agent skills (machine-local)
 .agents/skills-local/*

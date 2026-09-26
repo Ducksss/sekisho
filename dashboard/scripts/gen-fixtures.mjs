@@ -98,10 +98,10 @@ function loadPolicyYaml() {
   const gateFile = join(REPO, "gate", "policy", "policy.yaml");
   const candidates = [];
   if (existsSync(gateFile)) candidates.push(["gate/policy/policy.yaml", readFileSync(gateFile, "utf8")]);
-  const prd = readFileSync(join(REPO, "PRD.md"), "utf8");
+  const prd = readFileSync(join(REPO, "docs", "archive", "PRD.md"), "utf8");
   const section = prd.slice(prd.indexOf("## Appendix D."));
   const block = section.slice(section.indexOf("```yaml\n") + 8, section.indexOf("\n```", 10) + 1);
-  candidates.push(["PRD.md Appendix D", block]);
+  candidates.push(["docs/archive/PRD.md Appendix D", block]);
   for (const [origin, text] of candidates) {
     if (hashText(text) === EXPECTED_POLICY_ID) return { origin, text };
   }

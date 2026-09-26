@@ -1,5 +1,5 @@
 """Analyst prompts, verbatim from PRD Appendix E.1 and E.2 (committed per the ETHGlobal
-AI rule). tests/test_analyst.py checks they still match PRD.md byte for byte."""
+AI rule). tests/test_analyst.py checks they match docs/archive/PRD.md byte for byte."""
 
 # Appendix E.1: analyst system prompt.
 SYSTEM_PROMPT = """You are Sekisho's compliance analyst for a bank treasury that lets AI agents make payments.

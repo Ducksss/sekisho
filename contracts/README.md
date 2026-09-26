@@ -1,7 +1,12 @@
 # Sekisho contracts
 
-Foundry project for Sekisho's two onchain pieces (PRD Appendices A to C). The Solidity is
-copied verbatim from the PRD.
+Foundry project for Sekisho's decision registry and test-USDC escrow. The original
+design is retained in the [development archive](../docs/archive/PRD.md); current
+behaviour is defined by the contracts and tests.
+
+Base Sepolia deployment and verified rehearsal receipts: [LIVE-EVIDENCE.md](../docs/LIVE-EVIDENCE.md).
+The full provider-triggered HOLD journey is still unverified; the operator-driven
+escrow release/refund rehearsal is verified separately.
 
 | Path | What it is |
 |---|---|
@@ -18,7 +23,7 @@ copied verbatim from the PRD.
 - Held funds can only be released to a payee with a fresh ALLOW in the registry.
 - A hold can be settled once.
 - The payer can reclaim only after `reclaimAfter`.
-- Escrow accounting always returns to zero.
+- Escrow accounting returns to zero after all test deposits are settled.
 
 ## Setup
 
@@ -31,7 +36,7 @@ dependencies are git submodules of the repo, pinned in `foundry.lock`:
 | `openzeppelin-contracts` | tag `v5.4.0` (`c64a1ed`) |
 | `forge-multibaas` | commit `8e84d1c` on `main` (the repo has no tags) |
 
-`make install` runs `git submodule update --init --recursive`. The nested submodules
+`make install` runs `git submodule update --init`. The nested submodules
 (OpenZeppelin's own test libs, forge-multibaas's copy of forge-std) are not needed:
 `git submodule update --init` is enough, and the build and tests pass without them.
 
@@ -49,11 +54,11 @@ style notes, and those names are ABI getters the gate reads, so leave them.
 
 ## Deploy
 
-From the repo root, with `.env` filled in (keys from `make wallets`, funded per PRD 7.2):
+From the repo root, with `.env` filled in (keys from `make wallets`, funded with testnet gas):
 
 ```bash
 make deploy                              # deploy, then link both contracts into MultiBaas
-scripts/deploy_contracts.sh --no-link    # deploy only, then link by hand (PRD C.3 fallback)
+scripts/deploy_contracts.sh --no-link    # deploy only, then link by hand
 scripts/deploy_contracts.sh --verify     # also verify both on Blockscout (failure is not fatal)
 ```
 
@@ -67,9 +72,8 @@ The script:
   lines to add to `.env`.
 
 It never prints keys and never edits `.env`. It exits 2 when the contracts deployed but
-linking was not confirmed. `ENV_FILE=path` points it at another env file. After the real
-deploy, commit `broadcast/Deploy.s.sol/<chainId>/run-latest.json` as the deployment record.
-Anvil runs (chain 31337) are gitignored.
+linking was not confirmed. `ENV_FILE=path` points it at another env file. Keep raw broadcast artifacts local. Publish reviewed addresses, block numbers and
+transaction links in the evidence document; all broadcast output is gitignored.
 
 Local dry run:
 
@@ -109,7 +113,9 @@ ENV_FILE=/path/to/anvil.env scripts/deploy_contracts.sh --no-link
   links.
 - forge-multibaas pins no Foundry version: its README names none, and its CI builds with
   `nightly`. Its last commit is from March 2025. Here it was tested with Foundry 1.5.1,
-  against a local stand-in for the MultiBaas API, not yet against a live deployment.
+  against a local stand-in for the MultiBaas API. The published deployment used
+Foundry 1.8.3 with `--no-link`, followed by explicit MultiBaas linking at the actual
+deployment blocks. Do not confuse deployment-tool simulation with a confirmed broadcast.
 
 ## Interface reference (checked against the compiled ABI)
 

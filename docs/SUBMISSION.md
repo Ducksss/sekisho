@@ -1,182 +1,85 @@
-# ETHGlobal Tokyo 2026 submission copy
+# Submission checklist
 
-Text for the ETHGlobal submission form, ready to paste. The [README](../README.md) is the
-source of truth for claims; if one changes, update both. Items marked **[TODO]** need the
-live testnet run or the team's own answers.
+Current technical evidence: [LIVE-EVIDENCE.md](LIVE-EVIDENCE.md).
+The product is a verified hosted testnet MVP, not a complete production compliance system.
 
-Form limits: the short description is capped at 100 characters. Showcase pages display the
-description and "How it's made" in full; these drafts are about 1,200 and 1,900 characters.
+## Deadline and delivery
 
-## Project name
+Submit through the ETHGlobal Hacker Dashboard by **27 September 2026, 09:00 JST**.
+Select the partner prizes explicitly; the form permits up to three partner organizations.
+Choose finalist judging or partner prizes only. Finalist sessions allow four minutes
+for the demo and three minutes for questions.
 
-Sekisho
+Source: [Tokyo submission and judging instructions](https://ethglobal.com/events/tokyo2026/info/details).
+Confirm any organizer updates in the dashboard before submitting.
 
-## Short description (91 characters)
+## Final packaging
 
-> Screen the wallet before your AI agent pays: allow, hold in escrow, or block x402 payments.
+- [ ] Review source/history for credentials, then make the repository public and check signed-out access.
+- [ ] Confirm team members, roles and social handles in the main README and submission form.
+- [ ] Confirm original specification/code timing, reused material, human contributions and review in [AI usage](ai-usage.md).
+- [ ] Supply a concise title, description, implementation explanation, live application and repository links.
+- [ ] Complete each partner's integration explanation and feedback; link source and measured evidence.
+- [ ] Check all submitted links without a signed-in session.
+- [ ] Check remaining provider quota, testnet funds and the persistent public-trial allowance.
+- [ ] Rehearse the [demo](DEMO.md) and answer questions about limits, enforcement and report hashes.
+- [ ] Submit and verify the dashboard confirmation; a draft is not a completed submission.
 
-Alternative (64 characters, from PRD 13.2): *The compliance checkpoint every AI agent payment passes through.*
+Keep the verified scope explicit: hosted ALLOW and BLOCK are complete; escrow actions
+passed separately; the complete provider-triggered HOLD journey is still unverified.
+There is no need to invent that demonstration to meet Intercepta's blocked-or-held requirement.
 
-## Description
+## Demo video
 
-AI agents are starting to pay each other in USDC over x402, often before anyone has looked
-at the wallet on the other side. No bank or business can let an agent pay a counterparty its
-compliance team would refuse.
+Tokyo's published guidance calls video optional but strongly encouraged. If supplied:
 
-Sekisho (関所, the Edo-era road checkpoint) sits in that payment path. Before the buyer agent
-signs, and before the seller accepts, it screens the other wallet with Intercepta's live risk
-scan, the Chainalysis sanctions oracle and a short source-of-funds trace. A deterministic,
-versioned policy then decides. ALLOW: the agent signs. HOLD: the USDC waits in an onchain
-escrow until a human compliance officer releases or refunds it. BLOCK: no signature is ever
-produced. If the Intercepta scan or the gate fails, the payment is held, never allowed.
+- Use a human speaker, **not ElevenLabs, text-to-speech or another AI voiceover**.
+- Keep the finished recording between **2 and 4 minutes** and at least **720p**.
+- Show the real product. Slides can summarize context, but should not replace the demonstration.
+- Cut waiting time; do not speed up the recording to fit the limit.
+- Do not use a phone recording or music/text instead of spoken explanation.
 
-Every verdict and override is attested onchain through Curvegrid MultiBaas with a hash of the
-exact evidence report, which the compliance console re-hashes in the browser. The AI writes
-the case note; the policy decides, so a prompt-injected agent still cannot move money.
+Aim for 3:30 with the paid/refused sequence and a short limitations statement. Earlier
+AI narration and long slide scripts are not suitable submission recordings.
 
-Sekisho ships as a Python SDK with x402 payer and payee hooks, an MCP server for any agent,
-and a compliance console. It runs a testnet demo policy, not a certified AML programme or
-legal advice.
+## Intercepta: Safe Agent-to-Agent Payments with x402
 
-## How it's made
+[Official requirements](https://ethglobal.com/events/tokyo2026/prizes/intercepta).
 
-The gate is Python 3.11 with FastAPI, Pydantic, SQLite and server-sent events. Each screen
-calls Intercepta Quick Scan (always live for the direct counterparty), Scan Token and an
-address-poisoning check; makes a keyless `eth_call` to the Chainalysis sanctions oracle on
-Ethereum and Base; and traces one to two hops of inbound funds through Blockscout, including
-internal transactions, which is how mixer withdrawals arrive. The policy is a YAML file whose
-keccak hash is the `policy_id`. The strongest rule wins, and a failed Quick Scan fails closed
-to HOLD.
-
-The x402 v2 Python SDK's lifecycle hooks do the enforcing: `on_before_payment_creation` on
-the buyer and `on_before_verify` on the seller call the gate, so screening lives in tool code,
-not in a prompt. A per-payment spend cap in the x402 client is a second, independent guard.
-One hack worth noting: x402's httpx client wraps the abort error, so the SDK walks `__cause__`
-to recover the verdict and case ID for the agent.
-
-The contracts are Solidity (Foundry, OpenZeppelin). `ComplianceRegistry` records verdicts and
-report hashes; `ComplianceEscrow` holds USDC and refuses to release it to a payee without a
-fresh ALLOW. There are 18 contract tests, including 2 fuzz tests. MultiBaas is our path
-onchain: `forge-multibaas` links the contracts at deploy, every write is composed through its
-REST API and signed locally, HMAC-verified webhooks drive case state, and Event Queries feed
-the treasury view.
-
-The console is Next.js 16, React 19 and viem. Its audit page re-hashes the served report
-bytes and compares them with the hash recorded onchain; 45 parity checks keep Python and
-browser hashing byte-identical. The AI analyst (Claude Haiku or GPT behind a provider switch)
-writes an advisory note only after the verdict and hash exist. An MCP server exposes screening
-to any agent. The team wrote the PRD; Claude Code and Codex built from it, and every prompt is
-committed.
-
-## Links
-
-- Repository: https://github.com/Ducksss/sekisho **[TODO: make public before submitting]**
-- Website and guided walkthrough: https://getsekisho.vercel.app
-- Demo video: **[TODO]**
-
-## Partner prizes
-
-Select **Intercepta** and **Curvegrid**. One Curvegrid selection covers all three of its tracks;
-lead with Best AI Agent Project, then Best Digital Asset Dashboard. Leave the third slot empty
-unless a real integration lands (see [the third slot](#the-third-slot)).
-
-### Intercepta: Safe Agent-to-Agent Payments with x402
-
-**How we use it**
-
-Sekisho puts Intercepta inside the x402 payment flow on both sides. Before our treasury agent
-signs, the x402 payer hook (`sdk/sekisho/x402_hooks.py`) sends the vendor's `payTo` to the gate,
-which calls Quick Scan Address (always live), Scan Token on the asset's mainnet equivalent and
-an address-poisoning check (`gate/sekisho_gate/screening/intercepta.py`, `pipeline.py`). Before
-a vendor accepts, it screens the payer the same way (`agents/vendors/app.py`, `on_before_verify`).
-Intercepta's traits and toxic score feed a deterministic policy (`gate/policy/policy.yaml`):
-hard-block traits mean BLOCK and no signature; hold traits such as mixer exposure mean HOLD, with
-the USDC in an onchain escrow for a human officer; a failed scan means HOLD. Direct funders found
-by the source-of-funds trace get a cached Quick Scan, and Deep Scan enriches held cases. The
-console shows Intercepta's trait descriptions word for word. In the demo, a clean vendor is paid,
-a sanctioned address is blocked before signing, and a mixer-exposed vendor is held until an
-officer releases the funds.
-
-**Feedback**
-
-- Time to first call: quick. `/llms.txt` and the Markdown version of each docs page let our
-  coding agents read the reference directly, and the auth error is clear.
-  **[TODO: time from receiving the key to the first keyed response]**
-- Confusing: one product with three names (intercepta.io, docs.web3antivirus.io,
-  api.web3antivirus.io); docs.intercepta.io does not resolve.
-- Missing: example response bodies for the address endpoints, and documented responses for a
-  never-seen wallet and an exhausted quota. A fail-closed gate has to tell clean from unknown
-  from out of quota.
-- Would help most: a chain parameter on address scans, and one call that screens a whole x402
-  payment (`payTo`, asset, amount and the EIP-3009 authorization).
-- Ease of use rating: **[TODO: team's score]**
-
-### Curvegrid: Best AI Agent Project (and Best Digital Asset Dashboard)
-
-**How we use it**
-
-MultiBaas is Sekisho's path onchain. `forge-multibaas` links `ComplianceRegistry` and
-`ComplianceEscrow` at deploy (`contracts/script/Deploy.s.sol`). Every write (screening
-attestations, officer overrides, the escrow deposit, release and refund) is composed through
-the MultiBaas REST API, signed locally by the role's key, and submitted through MultiBaas
-(`gate/sekisho_gate/chain/multibaas.py`, `attest.py`). HMAC-verified webhooks drive case state
-(`gate/sekisho_gate/webhooks.py`), and saved Event Queries (`exposure_by_payee`,
-`released_by_payee`) power the console's Treasury page.
-
-AI Agent track: the treasury agent is a policy-aware transaction agent. It reads chain activity
-through the source-of-funds trace and acts onchain under a policy with spending limits
-(a per-payment cap, and a hold on a first large payment to a new counterparty), refused
-counterparties and required human approval for held funds. Dashboard track: the console turns
-each decision into an operational action (release or refund) with the evidence, treasury
-exposure and an onchain audit trail in view.
-
-**Feedback**
-
-- Wins: every contract call is a REST call, so the Python gate needed no web3 stack for writes.
-  Indexed events and webhooks replaced an indexer we would otherwise have written. The OpenAPI
-  spec let us check request shapes before we had a deployment.
-- Challenges: the docs' webhook sample and the spec disagree on the alias field (`addressLabel`
-  or `addressAlias`); `GET /events` has no sort order and returns 10 rows by default, so we poll
-  by transaction hash; Event Query `eventName` formats differ across official samples and result
-  keys come back lowercased; `forge-multibaas` links aliases during simulation, so a failed
-  broadcast leaves aliases pointing at nothing and re-runs return 409 without both allow-update
-  flags.
-- **[TODO: notes from the live deployment, plus the ease of use rating]**
-
-### The third slot
-
-Leave it empty: we only select partners whose tools Sekisho actually uses. If time allows after
-the live run, add Intercepta Scan Message on the EIP-3009 authorization before signing, since
-Intercepta's brief asks for the payment authorization itself to be screened.
-
-## Demo video and live pitch
-
-Use [PITCH_PLAN.md](../PITCH_PLAN.md): section 3 for the 4-minute live demo and section 4 for
-the video. Correct these claims before recording:
-
-| In the plan | Say instead |
+| Requirement | Evidence / action |
 |---|---|
-| "Intercepta live scan, 300 milliseconds"; "about two seconds" | The latencies measured in the live run, as shown on screen |
-| "That reason is Intercepta's own words" (S3) | Keep it only for live data: fixture traits are placeholder text |
-| S4: "Suppose the model falls for it" | Keep "suppose": the demo forces the bad tool call unless a live LLM is used |
-| "It matches the chain" | "It matches the hash recorded onchain" (the gate relays the MultiBaas event) |
-| "What if Intercepta or the gate is down? It fails closed" | True for Intercepta and the gate; an oracle or trace failure alone doesn't hold the payment |
+| Working agent payment flow | Hosted x402 purchase; exact 0.05 test USDC settled |
+| Live API evidence decides before signing/acceptance | [Adapter](../gate/sekisho_gate/screening/intercepta.py), [pipeline](../gate/sekisho_gate/screening/pipeline.py), [hooks](../sdk/sekisho/x402_hooks.py) |
+| Mainnet risk evidence even for testnet payments | Actual address scans; mainnet sanctions/trace data; payment chain Base Sepolia |
+| One payment succeeds, another is blocked or held with visible reason | Hosted PAID and REFUSED cases, canonical evidence and source reasons |
+| Public repo, API file links, 3–5 lines of feedback | Links and feedback in [README](../README.md#sponsor-integrations); public visibility still requires owner action |
 
-If asked who can release escrowed funds: only the officer role's key can sign a release onchain,
-and the escrow refuses payees without a fresh ALLOW. The demo gate's decision endpoint has no
-login; a deployment would put it behind the bank's single sign-on.
+The separate $500 Continuity prize applies only to eligible existing-product work;
+do not select it simply because Sekisho includes an SDK.
 
-## Before submitting
+## Curvegrid: Best AI Agent Project
 
-1. Get the Intercepta key (intercepta.io/ethglobal; keys can take hours) and a MultiBaas
-   deployment; `make check-setup` should pass 20 of 20.
-2. Fund fresh Base Sepolia wallets (gas and Circle faucet USDC), then deploy and link the contracts.
-3. Pick the clean and mixer-exposed vendors from real Intercepta profiles (`scripts/scan_candidates.py`),
-   starting from the test addresses Intercepta pinned in its ETHGlobal Discord channel.
-4. Rehearse S1 to S5, and S6 separately. Capture one raw Intercepta response with its latency.
-5. Record the video: human voice, 2 to 4 minutes, at least 720p, no speed-up.
-6. Fill the README TODOs (video link, contract addresses, one case per verdict, team handles,
-   keyed time to first call), "Team review" in [ai-usage.md](ai-usage.md), and the PRD
-   provenance note.
-7. Make the repository public. Every GitHub link on the website returns 404 until then.
-8. Submit with Intercepta and Curvegrid selected, pasting the answers above.
+[Official requirements](https://ethglobal.com/events/tokyo2026/prizes/curvegrid).
+Sekisho's strongest fit is the policy-aware agent payment flow.
+
+The README includes a one-sentence summary, MultiBaas integration and actual feedback,
+setup/testing links, and the known team member. Confirm the full team introduction and
+social handles. Repository artifacts include contracts, tests and documentation.
+
+Use the exact registry/escrow addresses, indexed Screened events and genuine webhook
+receipts in [LIVE-EVIDENCE.md](LIVE-EVIDENCE.md). Explain cumulative deposits separately
+from current held funds. Avoid presenting initial Foundry deployment as a MultiBaas
+runtime transaction.
+
+## Suggested project description
+
+Sekisho is a policy checkpoint for AI agent payments. It uses live risk evidence to
+allow, pause or refuse x402 payments before signing, verifies settlement separately,
+and records decision fingerprints through Curvegrid MultiBaas. The hosted Base Sepolia
+demo shows a paid purchase and a refused purchase without requiring a visitor wallet.
+
+## Human confirmation
+
+Do not remove unfinished provenance fields merely to make the submission appear complete.
+The original specs, prompts and plans remain in the repository archive. Confirm their
+actual authorship/timing and distinguish new work from reused code or assets.

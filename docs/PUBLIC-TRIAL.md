@@ -1,24 +1,32 @@
 # Public browser trial
 
-## What works without credentials
+## Current deployment
 
-`website/try/` is a static, guided simulation. Serve `website/` over HTTP and open
-`/try/`. No wallet, key, faucet or provider request is needed. The four scenarios
-are synthetic and labelled. A simulation never produces a real transaction link.
+The [public trial](https://sekisho-phi.vercel.app/try/) connects to the restricted
+[Render backend](https://sekisho-trial.onrender.com/public/readiness). Its hosted
+paid/refused flows, attestations, webhook deliveries and persistence across redeploy
+were verified on 26 September 2026; see [live evidence](LIVE-EVIDENCE.md).
+Visitors need no wallet or API credentials. The server funds the bounded testnet run.
+Four separate simulations remain available and are explicitly labelled.
 
-The public Python service exposes `/public/readiness`, `/public/runs` and an isolated
-run result. It is disabled by default. Live readiness is a configuration gate, not a
-claim that providers, funding or contracts have been validated.
+The service exposes `/public/readiness`, `POST /public/runs`, an isolated run result,
+and authenticated MultiBaas webhook ingress. The full gate and operator console are
+private. New deployments default to disabled. Readiness is a configuration gate,
+not a guarantee of continuing provider availability or funding.
+
+For local development:
 
 ```bash
 make public-trial
 # Other terminal, for the static page:
-python3 -m http.server 3112 --directory website
+python3 -m http.server 3112 --bind 127.0.0.1 --directory website
 ```
 
-The website's `try/config.mjs` contains only the public API base URL. Leave it empty
-until the hosted backend is ready. Use HTTPS publicly. Do not put provider keys,
-operator tokens, wallet private keys or session capabilities in this file.
+`make public-trial` starts only the runner. `make trial-stack` starts the gate and
+preset vendors as well. Neither command makes a payment by itself. The website's
+`try/config.mjs` contains the public API origin; use an empty string for simulation
+only, or a matching local runner origin for local integration tests. Never put
+provider keys, operator tokens, wallet keys or run capabilities in that file.
 
 ## Public-run limits
 
@@ -53,11 +61,9 @@ and preserve quota for the judged demonstration.
 Only the restricted public runner binds externally. The gate and preset vendor
 servers listen on loopback. The privileged treasury controller is not started.
 
-Render requires a paid service for persistent disks. Its published starter price is
-$7/month and disk storage $0.25/GB/month (checked 26 September 2026); verify the price
-shown before provisioning. Sources: https://render.com/pricing and
-https://render.com/docs/disks. Provisioning requires a signed-in Render account and review of the displayed billing
-plan; preparing these files alone does not provision or pay for a service.
+The committed Blueprint is a deployment template, not a credential bundle. Review
+the service and persistent-disk price displayed by Render before creating another
+instance. The existing hosted service has already been provisioned. For a new host:
 
 1. Sign in to Render and connect the Sekisho repository; select its `render.yaml`
    Blueprint. Review the displayed service/disk cost.
@@ -109,6 +115,6 @@ no secrets or private console routes are exposed, limits survive restart, and on
 real paid purchase plus one live refusal/pause is recorded. Docker build and live
 cloud execution were verified on Render on 26 September 2026. The live Chrome
 payment/refusal, exact attestations and genuine webhook deliveries are recorded in
-LIVE-EVIDENCE.md. After redeployment, a read-only query of `/data/public-trial.db`
+[LIVE-EVIDENCE.md](LIVE-EVIDENCE.md). After redeployment, a read-only query of `/data/public-trial.db`
 confirmed exactly the same two completed cases and 100,000 atomic test-USDC budget
 reservation. Restart did not erase the trial history or replenish its allowance.

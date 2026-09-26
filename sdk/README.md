@@ -5,7 +5,7 @@ payment goes ahead. On HOLD or BLOCK it stops before any signature exists. If th
 can't be reached, that counts as HOLD (fail closed).
 
 ```bash
-pip install -e sdk[x402]      # run from the repo root; without [x402] you get only the client (httpx + pydantic)
+pip install -e "sdk[x402]"      # run from the repo root; without [x402] you get only the client (httpx + pydantic)
 ```
 
 ## Payer side: the buying agent
@@ -49,6 +49,11 @@ in front.
 
 ## Direct calls and errors
 
+The x402 snippets above assume an initialized signer account, resource URL and
+resource server. Use only fresh Base Sepolia testnet accounts. They are integration
+fragments; see [the treasury tools](../agents/treasury/tools.py) for payment terms,
+budget controls, settlement reporting and the complete execution path.
+
 A complete screening-only example is in [examples/screen_before_signing.py](examples/screen_before_signing.py).
 Run `python sdk/examples/screen_before_signing.py 0xCOUNTERPARTY` from the repository root
 with the SDK installed and a gate on localhost:8000. It never signs or sends funds;
@@ -62,15 +67,28 @@ also has `report_payment`, `report_hold`, `get_case`, `list_cases`, `policy` and
 (or use `async with`).
 
 It raises two errors:
-- `SekishoUnavailable`: a connect error, a timeout or a 5xx. Treat it as HOLD.
+- `SekishoUnavailable`: a connection error, timeout, 5xx or unusable response body. Treat it as HOLD.
 - `SekishoRequestError`: a 4xx.
 
 ## MCP
 
-An agent without x402 hooks can call the gate through the MCP server (PRD 10.5, `make mcp`).
+An agent without x402 hooks can call the gate through the [MCP server](../mcp/server.py). `make mcp` starts streamable HTTP on port 9000;
+the configuration below starts stdio instead.
 In a Claude Desktop or Cursor config, use absolute paths:
 
 ```json
 {"mcpServers": {"sekisho": {"command": "/abs/path/.venv/bin/python", "args": ["/abs/path/mcp/server.py"],
   "env": {"SEKISHO_URL": "http://localhost:8000"}}}}
 ```
+
+## Verification and deployment boundary
+
+```bash
+.venv/bin/python -m pytest sdk/tests -q
+```
+
+The SDK talks to the full private gate. The hosted public runner intentionally does
+not expose `/v1/screen` or the rest of this API; use a gate you operate. HOLD pauses
+signing and does not itself deposit funds. The hosted paid/refused flow is verified;
+the full provider-triggered HOLD journey remains pending. See
+[readiness](../docs/readiness.md) for the distinction.
