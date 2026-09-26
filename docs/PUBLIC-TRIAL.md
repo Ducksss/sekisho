@@ -109,5 +109,6 @@ no secrets or private console routes are exposed, limits survive restart, and on
 real paid purchase plus one live refusal/pause is recorded. Docker build and live
 cloud execution were verified on Render on 26 September 2026. The live Chrome
 payment/refusal, exact attestations and genuine webhook deliveries are recorded in
-LIVE-EVIDENCE.md. Persistent disk is configured; durable-limit restart behavior is
-covered by automated tests, with a post-run cloud restart rehearsal still outstanding.
+LIVE-EVIDENCE.md. After redeployment, a read-only query of `/data/public-trial.db`
+confirmed exactly the same two completed cases and 100,000 atomic test-USDC budget
+reservation. Restart did not erase the trial history or replenish its allowance.

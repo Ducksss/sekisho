@@ -38,6 +38,10 @@ Both public reports preserve provider evidence; no simulation fallback was used.
 Delivery evidence comes from MultiBaas webhook history (`deliveredAt`) for the exact
 successful attestation transactions, not a fabricated webhook POST.
 Operator routes remain private; unsigned webhook requests return 401.
+After the proof-panel redeployment, a read-only Render shell query confirmed exactly
+two completed stored trials, with the same clean/refused case IDs and 100,000 atomic
+test-USDC reserved against the global allowance. The initial request retry did not
+create a third run. No private run capability, session ID, IP or credential was printed.
 
 ## Earlier local rehearsal evidence (before contracts and hosting)
 
