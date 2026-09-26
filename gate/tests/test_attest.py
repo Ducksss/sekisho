@@ -120,7 +120,13 @@ async def held_case(g, fakes, *, direction: str = "outbound") -> str:
     d = r.json()
     assert d["verdict"] == "HOLD"
     if direction == "outbound":
-        r = await g.client.post(f"/v1/cases/{d['case_id']}/hold", json={"hold_id": 7, "deposit_tx": "0x" + "d" * 64})
+        from unittest.mock import AsyncMock, patch
+        from pydantic import SecretStr
+        g.svc.settings.buyer_agent_pk = SecretStr(fakes.screener.key.hex())
+        # Officer workflow tests isolate receipt verification; receipt/API suites
+        # exercise proof checks and rejection before state mutation.
+        with patch("sekisho_gate.main.verify_hold_receipt", AsyncMock(return_value={})):
+            r = await g.client.post(f"/v1/cases/{d['case_id']}/hold", json={"hold_id": 7, "deposit_tx": "0x" + "d" * 64})
         assert r.json() == {"case_id": d["case_id"], "status": "HELD_ESCROWED"}
     await settle(g.svc)
     return d["case_id"]
@@ -218,7 +224,8 @@ async def test_decision_state_checks(gate, fakes):
 
 
 async def test_decision_without_multibaas_is_502(gate, fakes):
-    g = await gate()  # no MultiBaas
+    g = await gate(with_mb=True)
     cid = await held_case(g, fakes)
+    g.svc.attestor.mb = None  # MultiBaas becomes unavailable after the verified deposit
     r = await g.client.post(f"/v1/cases/{cid}/decision", json={"action": "release", "note": ""})
     assert r.status_code == 502 and r.json()["error"] == "chain_error"

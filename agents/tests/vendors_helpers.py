@@ -64,7 +64,7 @@ def decision(verdict: str, counterparty: str, *, direction: str = "inbound", cas
         "case_id": case_id, "case_id_b32": "0x" + "5c1e" * 16, "verdict": verdict,
         "risk_score": {"ALLOW": 2, "HOLD": 55, "BLOCK": 100}[verdict], "headline": HEADLINES[verdict],
         "direction": direction, "counterparty": counterparty, "amount": amount,
-        "amount_usd": int(amount) / 1_000_000, "asset": USDC, "reasons": reasons,
+        "amount_usd": int(amount) / 1_000_000, "asset": USDC, "payment_chain_id": 84532, "reasons": reasons,
         "checks": [{"name": "intercepta.quick_scan", "status": "ok", "live": True, "latency_ms": 312,
                     "summary": "toxicScore 100, 3 traits", "evidence_id": "E1"}],
         "trace": None,

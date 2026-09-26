@@ -304,3 +304,36 @@ async def test_spend_cap_runs_before_the_hook(buyer):
     assert unwrap_payment_aborted(info.value) is None
     assert not gate.called and signed(seen) == []
     buyer.sign.assert_not_called()
+
+
+@pytest.mark.parametrize("changes", [
+    {"counterparty": "0x" + "11" * 20},
+    {"amount": "50001"},
+    {"asset": "0x" + "22" * 20},
+    {"payment_chain_id": 8453},
+    {"payment_chain_id": None},
+    {"direction": "inbound"},
+])
+async def test_mismatched_allow_never_signs(buyer, make_decision, changes):
+    with respx.mock(assert_all_mocked=True) as router:
+        seen = mock_vendor(router, payment_required())
+        decision = make_decision("ALLOW", counterparty=PAY_TO)
+        decision.update(changes)
+        router.post(f"{GATE}/v1/screen").respond(200, json=decision)
+        CURRENT.set({})
+        with pytest.raises(X402TransportError):
+            await _buy(buyer.client)
+    buyer.sign.assert_not_called()
+    assert not signed(seen)
+
+
+@pytest.mark.parametrize(("asset", "chain"), [
+    (USDC, 8453), ("0x" + "11" * 20, 84532),
+])
+async def test_unsupported_payment_never_reaches_screening(asset, chain):
+    sk = SimpleNamespace(screen=MagicMock())
+    ctx = SimpleNamespace(selected_requirements=SimpleNamespace(
+        asset=asset, network=f"eip155:{chain}", amount="50000", pay_to=PAY_TO))
+    result = await payer_hook(sk, "agent")(ctx)
+    assert result.reason.startswith("HOLD|")
+    sk.screen.assert_not_called()

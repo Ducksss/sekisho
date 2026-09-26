@@ -125,7 +125,7 @@ def finite_or_none(value: Any) -> float | None:
 
 USDC_DECIMALS = 6
 
-# Payment assets we can value (all USDC, 6 decimals). Other assets are valued at 0.
+# Known USDC deployments (6 decimals), including read-only mainnet contexts.
 KNOWN_USDC = {
     (84532, "0x036CbD53842c5426634e7929541eC2318f3dCF7e"),  # Base Sepolia (payments)
     (8453, "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"),  # Base
@@ -146,15 +146,21 @@ def is_known_usdc(chain_id: int, asset: str, extra_usdc: str | None = None) -> b
     asset_cs = checksum_or_none(asset)
     if asset_cs is None:
         return False
-    if extra_usdc and checksum_or_none(extra_usdc) == asset_cs:
-        return True
     return (chain_id, asset_cs) in KNOWN_USDC
 
 
+def validate_payment_asset(chain_id: int, asset: str, configured_usdc: str) -> None:
+    """The hackathon gate authorizes canonical Base Sepolia USDC payments only."""
+    canonical = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+    if (chain_id != 84532 or checksum_or_none(asset) != canonical
+            or checksum_or_none(configured_usdc) != canonical):
+        raise ValueError("Only canonical Base Sepolia USDC payments are supported")
+
+
 def amount_to_usd(amount: str, chain_id: int, asset: str, extra_usdc: str | None = None) -> float:
-    """Atomic USDC amount -> USD at face value. Unknown assets -> 0.0."""
+    """Atomic canonical USDC amount -> USD; reject unknown valuations."""
     if not is_known_usdc(chain_id, asset, extra_usdc):
-        return 0.0
+        raise ValueError("Unknown payment asset valuation")
     return round(int(amount) / 10**USDC_DECIMALS, 6)
 
 

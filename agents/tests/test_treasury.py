@@ -86,7 +86,7 @@ def make_decision(verdict: str, counterparty: str, amount: str, case_id: str) ->
         "headline": {"ALLOW": "No risk signals found", "HOLD": "Mixer exposure: held for review",
                      "BLOCK": "Counterparty is on a sanctions list"}[verdict],
         "direction": "outbound", "counterparty": to_checksum_address(counterparty), "amount": str(int(amount)),
-        "amount_usd": int(amount) / 1e6, "asset": USDC, "reasons": reasons,
+        "amount_usd": int(amount) / 1e6, "asset": USDC, "payment_chain_id": 84532, "reasons": reasons,
         "checks": [{"name": "intercepta.quick_scan", "status": "ok", "live": True, "latency_ms": 312,
                     "summary": "toxicScore 0"},
                    {"name": "sanctions.oracle", "status": "ok", "latency_ms": 188, "summary": "clear"}],
@@ -327,17 +327,17 @@ async def test_s4_compromised_invoice_to_sanctioned_address_is_blocked():
 
 async def test_pay_invoice_allow_transfers_usdc_via_multibaas_and_reports():
     h = Harness(FakeSekisho())
-    r = await h.tools.pay_invoice(CLEAN.lower(), 1.5, "INV-1")
+    r = await h.tools.pay_invoice(CLEAN.lower(), 0.5, "INV-1")
     assert r["status"] == "paid" and r["verdict"] == "ALLOW"
-    assert h.mb.writes == [("usdc", "erc20", "transfer", [CLEAN, "1500000"], h.buyer.address)]
+    assert h.mb.writes == [("usdc", "erc20", "transfer", [CLEAN, "500000"], h.buyer.address)]
     assert h.sk.payments == [(r["case_id"], r["tx_hash"], "eip155:84532")]
 
 
 async def test_pay_invoice_hold_deposits_into_escrow():
     h = Harness(FakeSekisho({MIXER: "HOLD"}), FakeMB(hold_id=3))
-    r = await h.tools.pay_invoice(MIXER, "2", "INV-7")
+    r = await h.tools.pay_invoice(MIXER, "1", "INV-7")
     assert r["status"] == "held" and r["hold_id"] == 3
-    assert h.mb.writes == [("compliance_escrow", "compliance_escrow", "deposit", [MIXER, "2000000", b32(r["case_id"])],
+    assert h.mb.writes == [("compliance_escrow", "compliance_escrow", "deposit", [MIXER, "1000000", b32(r["case_id"])],
                             h.buyer.address)]
     assert h.sk.holds == [(r["case_id"], 3, r["deposit_tx"])]
 
@@ -609,3 +609,53 @@ async def test_e2e_vendor_refusing_our_wallet_is_reported():
         assert r["status"] == "refused_by_vendor" and gate.settled == 0 and gate.payments == []
         assert any("[VENDOR] vendor-clean screened our wallet and refused: HOLD" in line for line in lines)
         await tools.aclose()
+
+
+@pytest.mark.parametrize("verdict", ["ALLOW", "HOLD"])
+async def test_clean_wallet_oversized_invoice_cannot_transfer_or_escrow(verdict):
+    h = Harness(FakeSekisho({CLEAN: verdict}))
+    result = await h.tools.pay_invoice(CLEAN, 25, "untrusted invoice")
+    assert result["status"] == "blocked" and "$1" in result["reason"]
+    assert not h.mb.writes and not h.sk.payments and not h.sk.holds
+
+
+async def test_direct_x402_and_escrow_share_five_dollar_run_budget():
+    h = Harness(FakeSekisho({MIXER: "HOLD"}))
+    for _ in range(4):
+        assert (await h.tools.pay_invoice(CLEAN, 1))["status"] == "paid"
+    assert (await h.tools.buy_data("vendor-clean"))["status"] == "paid"  # $0.05
+    assert (await h.tools.pay_invoice(MIXER, "0.95"))["escrow"] == "deposited"
+    writes, signed = len(h.mb.writes), h.signed_count()
+    invoice = await h.tools.pay_invoice(CLEAN, "0.01")
+    payment = await h.tools.buy_data("vendor-clean")
+    assert "$5" in invoice["reason"] and "$5" in payment["reason"]
+    assert len(h.mb.writes) == writes and h.signed_count() == signed
+
+
+async def test_uncertain_failed_write_keeps_budget_reserved():
+    h = Harness(FakeSekisho(), FakeMB(revert="unknown"))
+    for _ in range(5):
+        assert (await h.tools.pay_invoice(CLEAN, 1))["status"] == "error"
+    result = await h.tools.pay_invoice(CLEAN, "0.01")
+    assert "$5" in result["reason"] and len(h.mb.writes) == 5
+
+
+@pytest.mark.parametrize("field,value", [("asset", "0x" + "22" * 20),
+                                        ("payment_chain_id", 8453), ("amount", "200000")])
+async def test_invoice_mismatched_verdict_cannot_transfer(field, value):
+    sk = FakeSekisho()
+    async def screen(**kwargs):
+        decision = make_decision("ALLOW", kwargs["counterparty"], kwargs["amount"], "cs_mismatch")
+        return decision.model_copy(update={field: value})
+    sk.screen = screen
+    h = Harness(sk)
+    result = await h.tools.pay_invoice(CLEAN, "0.05")
+    assert result["status"] == "held" and not h.mb.writes
+
+
+@pytest.mark.parametrize("field,value", [("usdc_address", "0x" + "22" * 20), ("chain_id", 8453)])
+async def test_invoice_unsupported_configuration_never_writes(field, value):
+    h = Harness(FakeSekisho())
+    h.tools.settings = h.tools.settings.model_copy(update={field: value})
+    result = await h.tools.pay_invoice(CLEAN, "0.05")
+    assert result["status"] == "held" and not h.mb.writes

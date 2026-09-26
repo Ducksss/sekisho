@@ -83,6 +83,7 @@ class Settings(BaseSettings):
     # Gate + clients
     sekisho_url: str = "http://localhost:8000"
     console_origin: str = "http://localhost:3000"
+    sekisho_operator_token: SecretStr = SecretStr("")
 
     # Demo counterparties (real mainnet addresses, PRD 7.3)
     vendor_clean_payto: str = ""

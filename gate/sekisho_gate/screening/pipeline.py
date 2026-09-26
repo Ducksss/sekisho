@@ -4,7 +4,7 @@ background work (attestation, analyst note, post-HOLD Deep Scan).
 - Checks run in parallel with per-check timeouts inside an overall 8 s budget.
 - A failed or timed-out check is recorded with status "error", never dropped.
 - Fail closed: a failed Quick Scan (or one with an unexpected shape) is at least HOLD.
-- Identical requests (counterparty, direction, amount, resource) within 10 s get the
+- Identical complete requests under unchanged policy/override/config within 10 s get the
   same case, including requests that arrive while the first is still screening.
 - The verdict returns immediately; nothing in the background can change it.
 """
@@ -34,7 +34,7 @@ from ..models import ScreenRequest
 from ..policy.engine import quick_scan_data
 from ..report import build_report, check_entry, ordered_checks, seal
 from ..store import dumps
-from ..util import amount_to_usd, case_id_b32, iso, new_case_id, token_scan_target
+from ..util import amount_to_usd, case_id_b32, iso, new_case_id, token_scan_target, validate_payment_asset
 from ..views import case_detail_view, decision_view
 from .types import CheckOutcome
 
@@ -44,8 +44,8 @@ IDEMPOTENCY_WINDOW_S = 10.0
 FAULT_INTERCEPTA_TIMEOUT = "intercepta_timeout"
 
 
-def idempotency_key(req: ScreenRequest) -> str:
-    material = json.dumps([req.counterparty, req.direction, req.amount, req.resource], separators=(",", ":"))
+def idempotency_key(req: ScreenRequest, context: dict[str, Any] | None = None) -> str:
+    material = json.dumps([req.model_dump(mode="json"), context], sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(material.encode()).hexdigest()
 
 
@@ -117,8 +117,21 @@ class ScreeningPipeline:
 
     # ---------- entry point ----------
 
+    def _request_key(self, req: ScreenRequest) -> str:
+        override = self.store.active_override(req.counterparty)
+        return idempotency_key(req, {
+            "policy_id": self.policy.id,
+            "override": override.as_dict() if override else None,
+            "fault": self.fault,
+            "screen_token": self.settings.screen_token,
+            "screen_impersonation": self.settings.screen_impersonation,
+            "always_live_direct": self.settings.always_live_direct,
+            "usdc_address": self.settings.usdc_address,
+        })
+
     async def screen(self, req: ScreenRequest) -> dict[str, Any]:
-        key = idempotency_key(req)
+        validate_payment_asset(req.payment_chain_id, req.asset, self.settings.usdc_address)
+        key = self._request_key(req)
         existing = self.store.idempotent_case_id(key, IDEMPOTENCY_WINDOW_S)
         if existing:
             row = self.store.get_case(existing)
@@ -300,9 +313,11 @@ class ScreeningPipeline:
         try:
             s = self.settings
             amount_usd = amount_to_usd(req.amount, req.payment_chain_id, req.asset, s.usdc_address)
+            outcomes = await self.run_checks(req)
+            # Officer state may change while upstream calls are pending.
             override = self.store.active_override(req.counterparty)
             has_prior = self.store.has_prior_allow_or_paid(req.counterparty)
-            outcomes = await self.run_checks(req)
+            key = self._request_key(req)
             decision = self.policy.evaluate(
                 outcomes,
                 amount_usd=amount_usd,
@@ -343,6 +358,7 @@ class ScreeningPipeline:
                 "amount": req.amount,
                 "amount_usd": amount_usd,
                 "asset": req.asset,
+                "payment_chain_id": req.payment_chain_id,
                 "reasons": decision.reasons,
                 "checks": [check_view(o) for o in ordered],
                 "trace": trace,

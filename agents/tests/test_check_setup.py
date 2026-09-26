@@ -40,3 +40,22 @@ def test_fixture_config_is_detected_without_modification(tmp_path):
     settings = Settings(_env_file=None, llm_provider="none")
     assert not dict(check_setup(settings, tmp_path))["dashboard fixtures off in local configuration"]
     assert config.read_text() == content
+
+
+def test_minimum_setup_keeps_safety_checks_but_drops_stretch_requirements(tmp_path):
+    settings = Settings(_env_file=None, llm_provider="none")
+    checks = dict(check_setup(settings, tmp_path, minimum=True))
+    assert "BLOCKSCOUT_API_KEY" not in checks
+    assert "VENDOR_MIXER_PAYTO valid address" not in checks
+    assert not checks["INTERCEPTA_API_KEY"]
+    assert not checks["SEKISHO_OPERATOR_TOKEN"]
+    assert checks["canonical Base Sepolia USDC"]
+    assert checks["testnet contract and payment chains"]
+
+
+def test_different_testnet_and_lookalike_token_do_not_pass_setup(tmp_path):
+    settings = Settings(_env_file=None, chain_id=11155111, x402_network="eip155:11155111",
+                        usdc_address="0x" + "11" * 20)
+    checks = dict(check_setup(settings, tmp_path, minimum=True))
+    assert not checks["canonical Base Sepolia USDC"]
+    assert not checks["testnet contract and payment chains"]

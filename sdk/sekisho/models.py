@@ -108,6 +108,8 @@ class Decision(_Model):
     amount: str
     amount_usd: float
     asset: str
+    # Zero marks an older gate response without chain binding; payer hooks refuse it.
+    payment_chain_id: int = Field(default=0, ge=0)
     reasons: list[Reason] = Field(default_factory=list)
     checks: list[Check] = Field(default_factory=list)
     trace: dict[str, Any] | None = None

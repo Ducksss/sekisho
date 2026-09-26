@@ -156,9 +156,6 @@ async def test_token_scan_targets_mainnet_equivalent(make_services, fakes):
     try:
         await svc.pipeline.screen(req())
         assert ("token", f"8453:{BASE_USDC}") in fakes.intercepta.calls
-        d = await svc.pipeline.screen(req(asset="0x4444444444444444444444444444444444444444", amount="1"))
-        tok = check(d, "intercepta.token")
-        assert tok["status"] == "skipped" and "no mainnet equivalent" in tok["summary"]
     finally:
         await svc.stop()
 
@@ -262,3 +259,96 @@ async def test_block_is_refused_at_decision_time(make_services, fakes):
         assert ("deep_scan", SANCTIONED) not in fakes.intercepta.calls
     finally:
         await svc.stop()
+
+
+@pytest.mark.parametrize("changed", [
+    {"agent_id": "another-agent"}, {"source": "mcp"},
+    {"purpose": "different purchase"}, {"untrusted_context": "different input"},
+])
+async def test_dedup_binds_complete_request(make_services, changed):
+    svc = make_services()
+    await svc.start()
+    try:
+        first = await svc.pipeline.screen(req())
+        second = await svc.pipeline.screen(req(**changed))
+        assert first["case_id"] != second["case_id"]
+    finally:
+        await svc.stop()
+
+
+async def test_new_officer_block_invalidates_cached_allow(make_services):
+    svc = make_services()
+    await svc.start()
+    try:
+        first = await svc.pipeline.screen(req())
+        assert first["verdict"] == "ALLOW"
+        svc.store.put_override(CLEAN, "BLOCK", 4_102_444_800, "cs_OFFICER", None)
+        second = await svc.pipeline.screen(req())
+        assert second["case_id"] != first["case_id"]
+        assert second["verdict"] == "BLOCK"
+    finally:
+        await svc.stop()
+
+
+@pytest.mark.parametrize("changed", [
+    {"asset": "0x4444444444444444444444444444444444444444"},
+    {"payment_chain_id": 1}, {"payment_chain_id": 8453, "asset": BASE_USDC},
+])
+async def test_unsupported_payment_rejected_before_scanning(make_services, fakes, changed):
+    svc = make_services()
+    await svc.start()
+    try:
+        with pytest.raises(ValueError, match="Base Sepolia USDC"):
+            await svc.pipeline.screen(req(**changed))
+        assert not fakes.intercepta.calls
+        assert not svc.store.list_cases()[0]
+    finally:
+        await svc.stop()
+
+
+async def test_policy_change_invalidates_cached_case(make_services):
+    svc = make_services()
+    await svc.start()
+    try:
+        first = await svc.pipeline.screen(req())
+        svc.policy.id = "0x" + "ab" * 32
+        second = await svc.pipeline.screen(req())
+        assert second["case_id"] != first["case_id"]
+        assert second["policy"]["id"] == svc.policy.id
+    finally:
+        await svc.stop()
+
+
+async def test_officer_block_while_checks_pending_is_applied(make_services, monkeypatch):
+    svc = make_services()
+    entered, resume = asyncio.Event(), asyncio.Event()
+    run_checks = svc.pipeline.run_checks
+
+    async def wait_checks(request):
+        entered.set()
+        await resume.wait()
+        return await run_checks(request)
+
+    monkeypatch.setattr(svc.pipeline, "run_checks", wait_checks)
+    await svc.start()
+    try:
+        pending = asyncio.create_task(svc.pipeline.screen(req()))
+        await entered.wait()
+        svc.store.put_override(CLEAN, "BLOCK", 4_102_444_800, "cs_OFFICER", None)
+        resume.set()
+        result = await pending
+        assert result["verdict"] == "BLOCK"
+    finally:
+        resume.set()
+        await svc.stop()
+
+
+def test_unknown_valuation_cannot_be_misrepresented_as_zero():
+    from sekisho_gate.util import amount_to_usd
+
+    with pytest.raises(ValueError, match="Unknown payment asset valuation"):
+        amount_to_usd("1000000", 84532, "0x4444444444444444444444444444444444444444")
+    with pytest.raises(ValueError, match="Unknown payment asset valuation"):
+        amount_to_usd("1000000", 1, req().asset, req().asset)
+    assert amount_to_usd("1000000", 84532, req().asset) == 1.0
+    assert amount_to_usd("1000000", 8453, BASE_USDC) == 1.0  # read-only valuation

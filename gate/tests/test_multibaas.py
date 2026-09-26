@@ -396,3 +396,15 @@ def test_webhook_hmac_accept_and_reject():
     assert verify_webhook_signature(body, ts, "", secret) is False
     assert verify_webhook_signature(body, ts, sig, secret, max_age_s=300, now=1699582290 + 10) is True
     assert verify_webhook_signature(body, ts, sig, secret, max_age_s=300, now=1699582290 + 301) is False
+
+
+@pytest.mark.parametrize("chain_id", [1, 8453, 11155111])
+async def test_call_write_refuses_other_chains_before_signing_or_http(chain_id, respx_mock):
+    from unittest.mock import MagicMock
+    signer = MagicMock(wraps=SIGNER, address=SIGNER.address)
+    async with httpx.AsyncClient() as http:
+        client = MultiBaasClient(make_settings(chain_id=chain_id), http=http)
+        with pytest.raises(MultiBaasError, match="Base Sepolia"):
+            await client.call_write("usdc", "erc20", "transfer", [SUBJECT, "50000"], signer)
+    signer.sign_transaction.assert_not_called()
+    assert not respx_mock.calls

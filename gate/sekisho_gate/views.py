@@ -52,6 +52,8 @@ def _validated(model: Any, data: dict[str, Any]) -> dict[str, Any]:
 def decision_view(row: dict[str, Any], explorer_url: str, *, validate: bool = True) -> dict[str, Any]:
     """ScreeningDecision: the decision as made, plus the current mutable state."""
     d = loads(row["decision_json"])
+    # Legacy stored decisions retain their recorded chain; never guess a signing chain.
+    d["payment_chain_id"] = int(row.get("payment_chain_id") or 0)
     deep = loads(row.get("deep_scan_json"))
     if deep and deep.get("check"):
         d["checks"] = [c for c in d["checks"] if c.get("name") != deep["check"]["name"]] + [deep["check"]]

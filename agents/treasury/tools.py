@@ -47,6 +47,8 @@ from sekisho import (
     unwrap_payment_aborted,
 )
 
+from sekisho.x402_hooks import validate_decision, validate_payment
+
 AGENT_ID = "treasury-agent-01"
 VENDORS_FILE = Path(__file__).with_name("vendors.json")
 SPEND_CAP = "$1"  # x402 per-payment cap: a second guard, independent of Sekisho
@@ -318,6 +320,7 @@ class TreasuryTools:
         self.emit = emit or (lambda line: print(line, flush=True))
         self.style = style or Style()
         self.agent_id = agent_id
+        self._reserved_usdc = 0  # atomic USDC; lifetime of this TreasuryTools run
         self.attempts: list[dict[str, Any]] = []  # every payment attempt, for summaries and asserts
         self._vendor_texts: list[str] = []
         # Registered after the Sekisho payer hook, so it only runs once the gate said ALLOW.
@@ -409,9 +412,11 @@ class TreasuryTools:
             pay_to, amount = fget(selected, "pay_to"), fget(selected, "amount")
             if decision is None or fget(decision, "verdict") != "ALLOW":
                 return AbortResult(reason="HOLD|unscreened|No Sekisho ALLOW before signing, failing closed")
-            screened = str(fget(decision, "counterparty") or "")
-            if screened.lower() != str(pay_to).lower() or str(fget(decision, "amount")) != str(amount):
-                return AbortResult(reason="HOLD|unscreened|Screened payment differs from the one to sign, failing closed")
+            validate_decision(decision, counterparty=pay_to, amount=amount,
+                              asset=fget(selected, "asset"), chain_id=chain_of(fget(selected, "network")))
+            refusal = self._reserve_payment(amount)
+            if refusal:
+                return AbortResult(reason=f"HOLD|budget|{refusal['reason']}")
             for line in decision_lines(decision, self.style):
                 self.emit(line)
             return None
@@ -596,6 +601,11 @@ class TreasuryTools:
             return self._record({**base, **self._screen_failed(f"gate unreachable: {exc}")})
         except Exception as exc:  # noqa: BLE001 - any screening failure fails closed
             return self._record({**base, **self._screen_failed(f"screening failed: {exc}")})
+        try:
+            validate_decision(decision, counterparty=pay_to, amount=amount,
+                              asset=self.settings.usdc_address, chain_id=self.settings.chain_id)
+        except ValueError as exc:
+            return self._record({**base, **self._screen_failed(str(exc))})
         for line in decision_lines(decision, self.style):
             self.emit(line)
         verdict, case_id = fget(decision, "verdict"), fget(decision, "case_id")
@@ -617,7 +627,26 @@ class TreasuryTools:
                 "reason": "Screening unavailable, failing closed",
                 "message": "Payment held because screening was unavailable. Nothing was sent."}
 
+    def _reserve_payment(self, amount: Any) -> dict[str, Any] | None:
+        # No await between check and reservation: concurrent tools share this budget.
+        # Reserve before signing and retain on ambiguous failures; signatures can settle later.
+        try:
+            atomic = validate_payment(self.settings.usdc_address, self.settings.chain_id, amount)
+            if atomic > 1_000_000:
+                raise ValueError("Payment exceeds $1 per-payment budget")
+            if self._reserved_usdc + atomic > 5_000_000:
+                raise ValueError("Payment exceeds $5 per-run budget")
+        except ValueError as exc:
+            self.emit(f"[AGENT] Payment refused: {exc}. Nothing signed.")
+            return {"status": "blocked", "verdict": "HOLD", "case_id": None,
+                    "escrow": False, "reason": str(exc)}
+        self._reserved_usdc += atomic
+        return None
+
     async def _transfer(self, case_id: Any, pay_to: str, amount: int) -> dict[str, Any]:
+        refusal = self._reserve_payment(amount)
+        if refusal:
+            return refusal
         s = self.settings
         self.emit(f"[CHAIN] usdc.transfer({short_addr(pay_to)}, {fmt_usdc(amount)} USDC) via MultiBaas, "
                   "signed by the treasury wallet")
@@ -660,6 +689,9 @@ class TreasuryTools:
             self.emit("[ESCROW] Missing payee or amount for the deposit; nothing was sent.")
             return {**out, "escrow": "failed", "message": f"Payment held (not signed), case {case_id}."}
         pay_to = to_checksum_address(pay_to)
+        refusal = self._reserve_payment(amount)
+        if refusal:
+            return refusal
         self.emit(f"[ESCROW] deposit({short_addr(pay_to)}, {fmt_usdc(amount)} USDC, case {short_hash(case_b32)}) "
                   "via MultiBaas, signed by the treasury wallet")
         try:

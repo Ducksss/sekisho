@@ -51,6 +51,7 @@ def decision_json(
         "amount": amount,
         "amount_usd": int(amount) / 1_000_000,
         "asset": USDC,
+        "payment_chain_id": 84532,
         "reasons": reasons,
         "checks": [
             {"name": "intercepta.quick_scan", "status": "ok", "live": True, "latency_ms": 312,

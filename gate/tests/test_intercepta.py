@@ -88,20 +88,19 @@ async def test_quick_scan_ok(client, respx_mock):
     assert client.quota_status()["used"] == 1
 
 
-async def test_404_and_empty_body_mean_no_history(client, respx_mock):
-    respx_mock.get(BASE + qs_path(ADDR)).mock(
-        return_value=httpx.Response(404, json={"status": 404, "response": "Not found"})
+@pytest.mark.parametrize("status, body", [
+    (404, '{"status":404,"response":"Not found"}'),
+    (204, ""), (200, ""), (200, "null"), (200, "{}"), (200, "[]"),
+])
+async def test_missing_provider_evidence_is_error(client, respx_mock, status, body):
+    route = respx_mock.get(BASE + qs_path(ADDR)).mock(
+        return_value=httpx.Response(status, text=body)
     )
-    respx_mock.get(BASE + qs_path(FUNDER)).mock(return_value=httpx.Response(200, text=""))
-    for address in (ADDR, FUNDER):
-        out = await client.quick_scan(address)
-        assert out.status == "ok"
-        assert out.data == {"toxicScore": 0, "traits": []}
-        assert "no history" in out.summary
-    # Not cached: a later cache-first scan asks again.
-    route = respx_mock.get(BASE + qs_path(ADDR))
+    out = await client.quick_scan(ADDR)
+    assert out.status == "error"
+    assert out.data is None
     await client.quick_scan_cached(ADDR)
-    assert route.call_count == 2
+    assert route.call_count == 2  # errors are never cached
 
 
 async def test_framework_404_is_an_error_not_clean(client, respx_mock):

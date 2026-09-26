@@ -37,6 +37,7 @@ def make_settings(tmp_path: Path):
             _env_file=None,
             db_path=tmp_path / "gate-test.db",
             demo_mode=True,
+            sekisho_operator_token="test-operator-token",
             llm_provider="none",
             llm_model="",
             intercepta_api_key="test-key",
@@ -108,7 +109,8 @@ async def gate(make_services):
         svc = make_services(**kw)
         await svc.start()
         app = create_app(settings=svc.settings, services=svc, configure_logging=False)
-        client = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://gate")
+        client = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://gate",
+                                   headers={"Authorization": "Bearer test-operator-token"})
         opened.append((svc, client))
         return SimpleNamespace(svc=svc, client=client, app=app)
 

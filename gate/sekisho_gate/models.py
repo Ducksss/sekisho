@@ -258,6 +258,7 @@ class ScreeningDecision(BaseModel):
     amount: str
     amount_usd: float
     asset: str
+    payment_chain_id: int = Field(default=0, ge=0)
     reasons: list[Reason]
     checks: list[Check]
     trace: dict[str, Any] | None = None  # TraceResult (PRD 9.5), or null if the trace failed

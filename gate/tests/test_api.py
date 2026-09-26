@@ -11,7 +11,7 @@ from sekisho_gate.models import CaseDetail, Metrics, ScreeningDecision
 DECISION_KEYS = {
     "case_id", "case_id_b32", "verdict", "risk_score", "headline", "direction", "counterparty", "amount",
     "amount_usd", "asset", "reasons", "checks", "trace", "policy", "report_hash", "attestation", "analyst",
-    "hold", "status", "decided_at", "latency_ms",
+    "hold", "status", "decided_at", "latency_ms", "payment_chain_id",
 }
 DETAIL_EXTRA = {"source", "agent_id", "purpose", "resource", "payment_chain_id", "untrusted_context",
                 "payment_tx", "evidence", "chain_events"}
@@ -121,9 +121,14 @@ async def test_report_bytes_are_exact(gate, fakes):
     assert (await g.client.get("/v1/reports/nothex")).status_code == 422
 
 
-async def test_payment_and_hold_reports(gate, fakes):
+async def test_payment_and_hold_reports(gate, fakes, monkeypatch):
+    from unittest.mock import AsyncMock
+    from pydantic import SecretStr
+    monkeypatch.setattr("sekisho_gate.main.verify_payment_receipt", AsyncMock(return_value={}))
+    monkeypatch.setattr("sekisho_gate.main.verify_hold_receipt", AsyncMock(return_value={}))
     profiles(fakes)
-    g = await gate()
+    g = await gate(with_mb=True)
+    g.svc.settings.buyer_agent_pk = SecretStr(fakes.screener.key.hex())
     allow = (await g.client.post("/v1/screen", json=screen_body(CLEAN))).json()
     tx = "0x" + "e" * 64
     r = await g.client.post(f"/v1/cases/{allow['case_id']}/payment", json={"tx_hash": tx.upper().replace("0X", "0x"),
@@ -226,3 +231,154 @@ async def test_unknown_route_uses_error_shape(gate):
     g = await gate()
     r = await g.client.get("/v1/nope")
     assert r.status_code == 404 and r.json()["error"] == "not_found"
+
+
+@pytest.mark.parametrize("path,body", [
+    ("/v1/demo/reset", {}),
+    ("/v1/cases/cs_NONEXISTENT/decision", {"action": "release", "note": "reviewed"}),
+])
+@pytest.mark.parametrize("authorization", ["", "Bearer wrong", "Basic test-operator-token", "Bearer tést"])
+async def test_operator_actions_reject_invalid_credentials(gate, path, body, authorization):
+    g = await gate()
+    response = await g.client.post(path, json=body, headers={"Authorization": authorization.encode()})
+    assert response.status_code == 401
+    assert response.json() == {"error": "unauthorized", "message": "A valid operator token is required."}
+    assert g.svc.store.list_cases()[0] == []
+
+
+@pytest.mark.parametrize("path,body", [
+    ("/v1/demo/reset", {}),
+    ("/v1/cases/cs_NONEXISTENT/decision", {"action": "release", "note": "reviewed"}),
+])
+async def test_operator_actions_disabled_without_configuration(gate, make_settings, path, body):
+    g = await gate(settings=make_settings(sekisho_operator_token=""))
+    response = await g.client.post(path, json=body)
+    assert response.status_code == 503
+    assert response.json()["error"] == "operator_unconfigured"
+    assert (await g.client.get("/v1/cases")).status_code == 200
+
+
+async def test_unauthenticated_reset_preserves_cases_and_overrides(gate, fakes):
+    profiles(fakes)
+    g = await gate()
+    await g.client.post("/v1/screen", json=screen_body(CLEAN))
+    g.svc.store.put_override(MIXER, "ALLOW", 4_102_444_800, None, None)
+    g.client.headers.pop("Authorization")
+    assert (await g.client.post("/v1/demo/reset")).status_code == 401
+    assert len((await g.client.get("/v1/cases")).json()["items"]) == 1
+    assert g.svc.store.active_override(MIXER) is not None
+
+
+@pytest.mark.parametrize("patch", [
+    {"payment_chain_id": 1},
+    {"payment_chain_id": 8453},
+    {"asset": "0x" + "1" * 40},
+])
+async def test_screen_rejects_unsupported_payment_asset(gate, patch):
+    g = await gate()
+    response = await g.client.post("/v1/screen", json=screen_body(**patch))
+    assert response.status_code == 422
+    assert response.json()["error"] == "invalid_request"
+    assert (await g.client.get("/v1/cases")).json()["items"] == []
+
+
+async def test_unverified_reports_do_not_change_case(gate, fakes, monkeypatch):
+    from unittest.mock import AsyncMock
+    from pydantic import SecretStr
+    from sekisho_gate.receipts import ReceiptValidationError
+    profiles(fakes)
+    g = await gate(with_mb=True)
+    g.svc.settings.buyer_agent_pk = SecretStr(fakes.screener.key.hex())
+    for counterparty, endpoint, body in [
+        (CLEAN, "payment", {"tx_hash": "0x" + "a" * 64}),
+        (MIXER, "hold", {"hold_id": 7, "deposit_tx": "0x" + "b" * 64}),
+    ]:
+        failure = AsyncMock(side_effect=ReceiptValidationError("No matching verified event"))
+        monkeypatch.setattr(f"sekisho_gate.main.verify_{endpoint}_receipt", failure)
+        case = (await g.client.post("/v1/screen", json=screen_body(counterparty))).json()
+        result = await g.client.post(f"/v1/cases/{case['case_id']}/{endpoint}", json=body)
+        assert result.status_code == 409
+        assert g.svc.store.get_case(case["case_id"])["status"] == "DECIDED"
+        assert failure.await_args.kwargs["payer"] == fakes.screener.address
+        assert failure.await_args.kwargs["payee"] == counterparty
+        assert failure.await_args.kwargs["min_timestamp"] > 0
+
+
+async def test_payment_reports_require_buyer_and_outbound_network(gate, fakes):
+    g = await gate()
+    for changes, network, status in [({}, "eip155:84532", 503),
+                                      ({}, "eip155:1", 409),
+                                      ({"direction": "inbound"}, "eip155:84532", 409)]:
+        case = (await g.client.post("/v1/screen", json=screen_body(CLEAN, **changes))).json()
+        result = await g.client.post(f"/v1/cases/{case['case_id']}/payment",
+                                     json={"tx_hash": "0x" + "a" * 64, "network": network})
+        assert result.status_code == status
+        assert g.svc.store.get_case(case["case_id"])["status"] == "DECIDED"
+
+
+async def test_payment_receipt_cannot_be_reused_after_archive(gate, fakes, monkeypatch):
+    from unittest.mock import AsyncMock
+    from pydantic import SecretStr
+    monkeypatch.setattr("sekisho_gate.main.verify_payment_receipt", AsyncMock(return_value={}))
+    g = await gate()
+    g.svc.settings.buyer_agent_pk = SecretStr(fakes.screener.key.hex())
+    tx = "0x" + "a" * 64
+    first = (await g.client.post("/v1/screen", json=screen_body(CLEAN))).json()
+    assert (await g.client.post(f"/v1/cases/{first['case_id']}/payment", json={"tx_hash": tx})).status_code == 200
+    g.svc.store.demo_reset()
+    second = (await g.client.post("/v1/screen", json=screen_body(CLEAN))).json()
+    result = await g.client.post(f"/v1/cases/{second['case_id']}/payment", json={"tx_hash": tx})
+    assert result.status_code == 409
+    assert g.svc.store.get_case(second["case_id"])["status"] == "DECIDED"
+
+
+async def test_rpc_wait_cannot_overwrite_later_hold_state(gate, fakes, monkeypatch):
+    from pydantic import SecretStr
+    profiles(fakes)
+    g = await gate(with_mb=True)
+    g.svc.settings.buyer_agent_pk = SecretStr(fakes.screener.key.hex())
+    case = (await g.client.post("/v1/screen", json=screen_body(MIXER))).json()
+
+    async def released_while_waiting(*args, **kwargs):
+        g.svc.store.update_case(case["case_id"], status="RELEASED", hold_id=7, hold_status="RELEASED")
+        return {}
+
+    monkeypatch.setattr("sekisho_gate.main.verify_hold_receipt", released_while_waiting)
+    result = await g.client.post(f"/v1/cases/{case['case_id']}/hold",
+                                 json={"hold_id": 7, "deposit_tx": "0x" + "d" * 64})
+    assert result.json()["status"] == "RELEASED"
+    assert g.svc.store.get_case(case["case_id"])["hold_status"] == "RELEASED"
+
+
+async def test_atomic_payment_acceptance_revalidates_state(gate, fakes, monkeypatch):
+    from pydantic import SecretStr
+    g = await gate()
+    g.svc.settings.buyer_agent_pk = SecretStr(fakes.screener.key.hex())
+    case = (await g.client.post("/v1/screen", json=screen_body(CLEAN))).json()
+
+    async def rejected_while_waiting(*args, **kwargs):
+        g.svc.store.update_case(case["case_id"], status="REJECTED")
+        return {}
+
+    monkeypatch.setattr("sekisho_gate.main.verify_payment_receipt", rejected_while_waiting)
+    result = await g.client.post(f"/v1/cases/{case['case_id']}/payment", json={"tx_hash": "0x" + "a" * 64})
+    assert result.status_code == 409
+    assert g.svc.store.get_case(case["case_id"])["status"] == "REJECTED"
+
+
+async def test_two_cases_cannot_claim_one_payment_concurrently(gate):
+    import asyncio
+    from sekisho_gate.errors import GateError
+    g = await gate()
+    cases = [(await g.client.post("/v1/screen", json=screen_body(CLEAN, resource=str(i)))).json()
+             for i in range(2)]
+
+    def accept(case_id):
+        try:
+            return g.svc.store.record_verified_payment(case_id, "0x" + "a" * 64, "eip155:84532")
+        except GateError as exc:
+            return exc.status
+
+    outcomes = await asyncio.gather(*(asyncio.to_thread(accept, c["case_id"]) for c in cases))
+    assert sorted(outcomes, key=str) == [409, True]
+    assert sum(g.svc.store.get_case(c["case_id"])["status"] == "PAID" for c in cases) == 1

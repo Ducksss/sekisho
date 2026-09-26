@@ -7,8 +7,8 @@ JSON). Trait descriptions are kept verbatim.
 - Header `X-API-KEY`. An empty key is an immediate error with no HTTP call.
 - 401/403 means a bad key: an error, never retried. No Intercepta call is retried: each
   retry costs quota and the direct scan has a 3 s budget.
-- A 404 or an empty body on an address scan means "no history": status "ok",
-  toxicScore 0, no traits. Otherwise every fresh wallet would be refused (rule 7).
+- Missing/empty responses are errors. Only explicit, well-formed provider evidence
+  can establish a zero-risk score; never synthesize clean wallet history.
 - Every HTTP call is counted in the `quota` table before it is sent.
 - Cache: 24 h, keyed by (endpoint, address). Only complete 200 responses are cached.
 """
@@ -77,10 +77,6 @@ def _upstream_message(parsed: Any) -> str:
     return ""
 
 
-def _is_empty(text: str) -> bool:
-    return text.strip() in ("", "null", "{}", "[]")
-
-
 # ---------- response parsers: parsed JSON -> (data, summary) or ValueError ----------
 
 
@@ -137,13 +133,6 @@ def _parse_token(parsed: Any) -> tuple[dict, str]:
     return data, summary
 
 
-_CLEAN_SCORE = ({"toxicScore": 0, "traits": []}, "toxicScore 0, 0 traits")
-_CLEAN_IMPERSONATION = (
-    {"isAddressPoisoned": False, "originalAddress": None},
-    "not a poisoning lookalike",
-)
-
-
 class InterceptaClient:
     def __init__(self, settings, http: httpx.AsyncClient | None = None) -> None:
         self.settings = settings
@@ -161,7 +150,7 @@ class InterceptaClient:
         still written); the direct scan is never skipped for quota."""
         return await self._call(
             QUICK_SCAN, "quick_scan", address, timeout_s=TIMEOUT_QUICK_S,
-            read_cache=not live, respect_reserve=False, parse=_parse_score, empty=_CLEAN_SCORE,
+            read_cache=not live, respect_reserve=False, parse=_parse_score,
         )
 
     async def quick_scan_cached(self, address: str) -> CheckOutcome:
@@ -169,14 +158,14 @@ class InterceptaClient:
         quota is at INTERCEPTA_RESERVE_FROM so the direct scans keep their budget."""
         return await self._call(
             QUICK_SCAN, "quick_scan", address, timeout_s=TIMEOUT_QUICK_S,
-            read_cache=True, respect_reserve=True, parse=_parse_score, empty=_CLEAN_SCORE,
+            read_cache=True, respect_reserve=True, parse=_parse_score,
         )
 
     async def deep_scan(self, address: str, *, live: bool = False) -> CheckOutcome:
         """Deep Scan (after a HOLD, for the officer). Cache first unless `live`."""
         return await self._call(
             DEEP_SCAN, "deep_scan", address, timeout_s=TIMEOUT_DEEP_S,
-            read_cache=not live, respect_reserve=False, parse=_parse_score, empty=_CLEAN_SCORE,
+            read_cache=not live, respect_reserve=False, parse=_parse_score,
         )
 
     async def impersonation(self, address: str, *, live: bool = False) -> CheckOutcome:
@@ -184,14 +173,13 @@ class InterceptaClient:
         return await self._call(
             IMPERSONATION, "impersonation", address, timeout_s=TIMEOUT_OTHER_S,
             read_cache=not live, respect_reserve=False, parse=_parse_impersonation,
-            empty=_CLEAN_IMPERSONATION,
         )
 
     async def token_scan(self, token_address: str, chain_id: int = 8453) -> CheckOutcome:
         """Scan Token on a mainnet chain. Cached 24 h per (chain, token)."""
         return await self._call(
             TOKEN, "token", token_address, timeout_s=TIMEOUT_OTHER_S,
-            read_cache=True, respect_reserve=False, parse=_parse_token, empty=None,
+            read_cache=True, respect_reserve=False, parse=_parse_token,
             params={"chainId": str(chain_id)}, cache_endpoint=f"token:{chain_id}",
         )
 
@@ -218,7 +206,7 @@ class InterceptaClient:
             return False, f"invalid Intercepta API key (HTTP {self.last_http_status}), {usage}"
         if self.last_http_status is None:
             return True, f"key set, not yet used this run, {usage}"
-        if 200 <= self.last_http_status < 300 or self.last_http_status == 404:
+        if self.last_http_status == 200:
             return True, f"key valid, {usage}"
         return True, f"key set, last call HTTP {self.last_http_status}, {usage}"
 
@@ -238,7 +226,6 @@ class InterceptaClient:
         read_cache: bool,
         respect_reserve: bool,
         parse: Callable[[Any], tuple[dict, str]],
-        empty: tuple[dict, str] | None,
         params: dict | None = None,
         cache_endpoint: str | None = None,
     ) -> CheckOutcome:
@@ -317,17 +304,8 @@ class InterceptaClient:
             log.error(msg)
             return fail(msg, live=True, raw=parsed)
 
-        no_history = status in (204, 404) or (status == 200 and _is_empty(text))
-        if no_history and empty is not None:
-            if status == 404 and "cannot get" in text.lower():
-                # A framework "Cannot GET /path" 404 means the route is wrong, not that the
-                # address is new. Treating it as clean would fail open.
-                return fail("Intercepta endpoint not found (HTTP 404)", live=True, raw=parsed)
-            data, summary = empty
-            return CheckOutcome(
-                name=name, status="ok", live=True, latency_ms=ms(),
-                summary=f"no history (HTTP {status}): {summary}", data=dict(data), raw=parsed,
-            )
+        if status == 404 and "cannot get" in text.lower():
+            return fail("Intercepta endpoint not found (HTTP 404)", live=True, raw=parsed)
 
         if status != 200:
             upstream = _upstream_message(parsed)

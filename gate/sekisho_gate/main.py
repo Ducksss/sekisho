@@ -10,13 +10,15 @@ import time
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, Query, Request
+from fastapi import Depends, FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from sse_starlette.sse import EventSourceResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from .auth import require_operator
+from .chain.attest import signer_from
 from .config import Settings, get_settings
 from .errors import GateError, invalid_state, not_found
 from .logs import get_logger, setup_logging
@@ -43,8 +45,10 @@ from .models import (
     Treasury,
     Verdict,
 )
+from .receipts import verify_hold_receipt, verify_payment_receipt
 from .services import Services
 from .sse import KEEPALIVE_S, parse_last_event_id
+from .util import validate_payment_asset
 from .views import case_detail_view, chain_event_view, decision_view
 from .webhooks import build_router
 
@@ -166,10 +170,17 @@ def create_app(
         log.exception("unhandled error")
         return JSONResponse({"error": "internal_error", "message": f"{type(exc).__name__}"}, status_code=500)
 
+    def operator(request: Request) -> None:
+        require_operator(request.headers.get("authorization"), settings.sekisho_operator_token)
+
     # ---------- screening and cases ----------
 
     @app.post("/v1/screen", responses={200: {"model": ScreeningDecision}, **errors_doc})
     async def screen(req: ScreenRequest, request: Request) -> JSONResponse:
+        try:
+            validate_payment_asset(req.payment_chain_id, req.asset, settings.usdc_address)
+        except ValueError as exc:
+            raise GateError(422, "invalid_request", str(exc)) from exc
         view = await svc().pipeline.screen(req)
         request.state.case_id = view["case_id"]
         return JSONResponse(view)
@@ -201,19 +212,35 @@ def create_app(
         events = svc().store.chain_events_for_case(row["case_id"], row["case_id_b32"])
         return JSONResponse(case_detail_view(row, events, settings.explorer_url))
 
+    def _reporting_buyer() -> str:
+        try:
+            buyer = signer_from(settings.buyer_agent_pk.get_secret_value())
+        except Exception as exc:
+            raise GateError(503, "not_configured", "Configured buyer is unavailable") from exc
+        if buyer is None:
+            raise GateError(503, "not_configured", "BUYER_AGENT_PK is required to verify payment reports")
+        return buyer.address
+
     @app.post("/v1/cases/{case_id}/payment", responses={200: {"model": PaymentAck}, **errors_doc})
     async def report_payment(case_id: str, body: PaymentReport) -> JSONResponse:
         s = svc()
         row = _case_or_404(case_id)
-        if row["verdict"] != "ALLOW":
-            raise invalid_state(f"only ALLOW cases can be paid (case is {row['verdict']})")
+        if row["verdict"] != "ALLOW" or row["direction"] != "outbound":
+            raise invalid_state("only outbound ALLOW cases can report payments")
+        if body.network != f"eip155:{row['payment_chain_id']}" or row["payment_chain_id"] != 84532:
+            raise invalid_state("payment report must match the screened Base Sepolia network")
         if row["status"] == "PAID":
-            if row.get("payment_tx") != body.tx_hash:
-                raise invalid_state(f"case already PAID with {row.get('payment_tx')}")
-        elif row["status"] != "DECIDED":
+            if row.get("payment_tx") != body.tx_hash or row.get("payment_network") != body.network:
+                raise invalid_state("case already PAID with a different payment")
+            return JSONResponse({"case_id": case_id, "status": "PAID"})
+        if row["status"] != "DECIDED":
             raise invalid_state(f"case status is {row['status']}")
-        else:
-            s.store.update_case(case_id, status="PAID", payment_tx=body.tx_hash, payment_network=body.network)
+        await verify_payment_receipt(
+            settings.contracts_rpc_url, body.tx_hash, chain_id=row["payment_chain_id"],
+            token=row["asset"], payer=_reporting_buyer(), payee=row["counterparty"],
+            amount=row["amount"], min_timestamp=int(row["created_ts"]),
+        )
+        if s.store.record_verified_payment(case_id, body.tx_hash, body.network):
             s.store.audit("agent", "payment", case_id, {"tx_hash": body.tx_hash, "network": body.network})
             s.notifier.case_updated(case_id, metrics=True)
         return JSONResponse({"case_id": case_id, "status": "PAID"})
@@ -227,20 +254,30 @@ def create_app(
         linked = row.get("hold_id")
         if linked is not None and int(linked) != body.hold_id:
             raise invalid_state(f"case already linked to hold {linked}")
+        if row.get("deposit_tx") and row["deposit_tx"] != body.deposit_tx:
+            raise invalid_state("case already linked to a different deposit")
         if row["status"] not in ("DECIDED", "HELD_ESCROWED"):
             return JSONResponse({"case_id": case_id, "status": row["status"]})
-        fields: dict[str, Any] = {"hold_id": body.hold_id, "status": "HELD_ESCROWED"}
-        if not row.get("deposit_tx"):
-            fields["deposit_tx"] = body.deposit_tx
-        if not row.get("hold_status"):
-            fields["hold_status"] = "HELD"
-        s.store.update_case(case_id, **fields)
+        payer = _reporting_buyer()
+        if s.mb is None:
+            raise GateError(503, "not_configured", "MultiBaas escrow address is unavailable")
+        try:
+            escrow = await s.mb.address_of(settings.escrow_alias)
+        except Exception as exc:
+            raise GateError(502, "receipt_unavailable", "Could not resolve configured escrow") from exc
+        await verify_hold_receipt(
+            settings.contracts_rpc_url, body.deposit_tx, chain_id=row["payment_chain_id"],
+            escrow=escrow, case_id_b32=row["case_id_b32"], hold_id=body.hold_id,
+            payer=payer, payee=row["counterparty"], amount=row["amount"],
+            min_timestamp=int(row["created_ts"]),
+        )
+        status = s.store.record_verified_hold(case_id, body.hold_id, body.deposit_tx)
         s.store.audit("agent", "hold", case_id, {"hold_id": body.hold_id, "deposit_tx": body.deposit_tx})
         s.attestor.track_tx(body.deposit_tx)
         s.notifier.case_updated(case_id, metrics=True)
-        return JSONResponse({"case_id": case_id, "status": "HELD_ESCROWED"})
+        return JSONResponse({"case_id": case_id, "status": status})
 
-    @app.post("/v1/cases/{case_id}/decision", responses={200: {"model": DecisionResult}, **errors_doc})
+    @app.post("/v1/cases/{case_id}/decision", dependencies=[Depends(operator)], responses={200: {"model": DecisionResult}, **errors_doc})
     async def decide(case_id: str, body: DecisionRequest) -> JSONResponse:
         result = await svc().attestor.decide(case_id, body.action, body.note)
         return JSONResponse(DecisionResult.model_validate(result).model_dump(mode="json"))
@@ -293,7 +330,7 @@ def create_app(
             svc().broker.stream(last), ping=KEEPALIVE_S, headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
         )
 
-    @app.post("/v1/demo/reset", responses={200: {"model": DemoResetResult}, 403: {"model": ErrorBody}})
+    @app.post("/v1/demo/reset", dependencies=[Depends(operator)], responses={200: {"model": DemoResetResult}, 403: {"model": ErrorBody}})
     async def demo_reset() -> JSONResponse:
         s = svc()
         if not settings.demo_mode:

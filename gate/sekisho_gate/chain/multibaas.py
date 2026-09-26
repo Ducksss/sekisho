@@ -543,6 +543,8 @@ class MultiBaasClient:
         """Compose via MultiBaas, sign locally, submit. Returns the tx hash.
         The nonce defaults to the signer's pending nonce on CONTRACTS_RPC_URL (one
         queue per signer key upstream means no two writes race)."""
+        if self._chain_id != 84532:
+            raise MultiBaasError("Contract writes are restricted to Base Sepolia (chain 84532)")
         if nonce is None:
             nonce = await self.pending_nonce(signer.address)
         tx = await self.compose(alias, label, method, args, signer.address, nonce=nonce, types=types)

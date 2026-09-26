@@ -18,6 +18,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator
 
+from ..errors import invalid_state
 from ..policy.engine import Override
 from ..util import iso
 
@@ -297,6 +298,47 @@ class Store:
         )
         next_cursor = rows[limit - 1]["case_id"] if len(rows) > limit else None
         return rows[:limit], next_cursor
+
+    def record_verified_payment(self, case_id: str, tx_hash: str, network: str) -> bool:
+        """Atomically prevent receipt reuse, including cases archived by demo reset."""
+        with self._tx() as conn:
+            row = conn.execute("SELECT * FROM cases WHERE case_id = ?", (case_id,)).fetchone()
+            if row is None or row["verdict"] != "ALLOW" or row["direction"] != "outbound":
+                raise invalid_state("only outbound ALLOW cases can be paid")
+            other = conn.execute(
+                "SELECT case_id FROM cases WHERE lower(payment_tx) = ? AND payment_network = ? AND case_id != ?",
+                (tx_hash.lower(), network, case_id),
+            ).fetchone()
+            if other is not None:
+                raise invalid_state("transaction already proves payment for another case")
+            if row["status"] == "PAID" and row["payment_tx"] == tx_hash and row["payment_network"] == network:
+                return False
+            if row["status"] != "DECIDED":
+                raise invalid_state(f"case status is {row['status']}")
+            conn.execute(
+                "UPDATE cases SET status='PAID', payment_tx=?, payment_network=?, updated_at=? WHERE case_id=?",
+                (tx_hash, network, iso(), case_id),
+            )
+            return True
+
+    def record_verified_hold(self, case_id: str, hold_id: int, tx_hash: str) -> str:
+        """Keep later webhook state when it arrives during receipt verification."""
+        with self._tx() as conn:
+            row = conn.execute("SELECT * FROM cases WHERE case_id = ?", (case_id,)).fetchone()
+            if row is None or row["verdict"] != "HOLD" or row["direction"] != "outbound":
+                raise invalid_state("only outbound HOLD cases have escrow deposits")
+            if row["hold_id"] is not None and int(row["hold_id"]) != hold_id:
+                raise invalid_state("case already linked to a different hold")
+            if row["deposit_tx"] and row["deposit_tx"] != tx_hash:
+                raise invalid_state("case already linked to a different deposit")
+            if row["status"] not in ("DECIDED", "HELD_ESCROWED"):
+                return row["status"]
+            conn.execute(
+                "UPDATE cases SET status='HELD_ESCROWED', hold_id=?, deposit_tx=?, "
+                "hold_status=COALESCE(hold_status, 'HELD'), updated_at=? WHERE case_id=?",
+                (hold_id, tx_hash, iso(), case_id),
+            )
+            return "HELD_ESCROWED"
 
     def update_case(self, case_id: str, **fields: Any) -> bool:
         bad = set(fields) - _MUTABLE

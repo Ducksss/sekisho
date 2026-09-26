@@ -32,7 +32,10 @@ from fastapi import FastAPI, Request  # noqa: E402
 from fastapi.exceptions import RequestValidationError  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi.responses import JSONResponse  # noqa: E402
-from pydantic import BaseModel  # noqa: E402
+from sekisho_gate.auth import require_operator
+from sekisho_gate.config import get_settings
+from sekisho_gate.errors import GateError
+from pydantic import BaseModel, SecretStr  # noqa: E402
 
 HOST, PORT = "127.0.0.1", 8100
 DEMO_SCRIPT = ROOT / "scripts" / "demo.py"
@@ -83,11 +86,11 @@ class Run:
                 "lines": list(self.lines), "started_at": self.started_at, "finished_at": self.finished_at}
 
 
-def create_app(command: Callable[[str], list[str]] = demo_command, origin: str | None = None) -> FastAPI:
+def create_app(command: Callable[[str], list[str]] = demo_command, origin: str | None = None,
+               operator_token: SecretStr | None = None) -> FastAPI:
     if origin is None:
-        from sekisho_gate.config import get_settings
-
         origin = get_settings().console_origin
+    operator_token = operator_token if operator_token is not None else get_settings().sekisho_operator_token
     runs: dict[str, Run] = {}
     state: dict[str, Any] = {"current": None, "tasks": set()}
 
@@ -122,7 +125,7 @@ def create_app(command: Callable[[str], list[str]] = demo_command, origin: str |
     app = FastAPI(title="Sekisho treasury control", lifespan=lifespan,
                   docs_url=None, redoc_url=None, openapi_url=None)
     app.add_middleware(CORSMiddleware, allow_origins=[origin], allow_methods=["GET", "POST"],
-                       allow_headers=["Content-Type"])
+                       allow_headers=["Content-Type", "Authorization"])
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(_request: Request, exc: RequestValidationError) -> JSONResponse:
@@ -130,7 +133,11 @@ def create_app(command: Callable[[str], list[str]] = demo_command, origin: str |
         return error(422, "invalid_request", problems or "invalid request")
 
     @app.post("/run")
-    async def start_run(body: RunRequest) -> Any:
+    async def start_run(body: RunRequest, request: Request) -> Any:
+        try:
+            require_operator(request.headers.get("authorization"), operator_token)
+        except GateError as exc:
+            return error(exc.status, exc.code, exc.message)
         current = runs.get(state["current"] or "")
         if current is not None and current.status == "running":
             return error(409, "run_in_progress", f"run {current.run_id} ({current.scenario}) is still running",

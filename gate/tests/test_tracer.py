@@ -378,13 +378,13 @@ async def test_intercepta_funder_flags(make_tracer, respx_mock):
     qs(A, {"toxicScore": 30, "traits": [{"name": "mixer_transfers", "risk": 50, "txsCount": 2, "description": "d"},
                                         {"name": "fake_phishing_transfer", "risk": 5, "txsCount": 9, "description": "d"}]})
     qs(B, {"toxicScore": 85, "traits": []})
-    qs(D, {"status": 404}, status=404)  # no history: clean
+    qs(D, {"status": 404}, status=404)  # unavailable evidence, never a clean score
     out = await make_tracer(intercepta_api_key=SecretStr("k")).trace(C)
     hop1 = {h["address"]: h for h in out.data["hop1"]}
     assert hop1[A]["flags"] == ["intercepta:mixer_transfers"]  # info traits do not flag
     assert hop1[A]["intercepta"] == {"toxicScore": 30, "traits": ["mixer_transfers", "fake_phishing_transfer"]}
     assert hop1[B]["flags"] == ["intercepta:toxic_score", "label:exploit"]
-    assert hop1[D]["flags"] == [] and hop1[D]["intercepta"] == {"toxicScore": 0, "traits": []}
+    assert hop1[D]["flags"] == [] and hop1[D]["intercepta"] is None
     # A is flagged now, so only D goes to hop 2 (its funder V is clean).
     assert {e["via"] for e in out.data["hop2"]} == {D}
     assert out.data["taint_usd"] == 13_000.0

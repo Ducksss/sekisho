@@ -67,6 +67,31 @@ def _abort_result_cls() -> Any:
 # ---------------------------------------------------------------------------- hooks
 
 
+BASE_SEPOLIA_CHAIN_ID = 84532
+BASE_SEPOLIA_USDC = "0x036cbd53842c5426634e7929541ec2318f3dcf7e"
+
+
+def validate_payment(asset: str, chain_id: int, amount: Any) -> int:
+    """Only canonical testnet USDC can reach a signing path in this demo."""
+    if chain_id != BASE_SEPOLIA_CHAIN_ID or str(asset).lower() != BASE_SEPOLIA_USDC:
+        raise ValueError("Only Base Sepolia USDC payments are supported")
+    if not str(amount).isdigit() or int(amount) <= 0:
+        raise ValueError("Payment amount must be positive atomic USDC")
+    return int(amount)
+
+
+def validate_decision(decision: Any, *, counterparty: str, amount: Any,
+                      asset: str, chain_id: int, direction: str = "outbound") -> None:
+    """Bind the gate verdict to the exact payment; absent binding fields fail closed."""
+    validate_payment(asset, chain_id, amount)
+    if (str(getattr(decision, "counterparty", "")).lower() != str(counterparty).lower()
+            or str(getattr(decision, "amount", "")) != str(amount)
+            or str(getattr(decision, "asset", "")).lower() != str(asset).lower()
+            or getattr(decision, "payment_chain_id", None) != chain_id
+            or getattr(decision, "direction", None) != direction):
+        raise ValueError("Screened payment differs from requested payment")
+
+
 def payer_hook(sk: SekishoClient, agent_id: str) -> Any:
     """Build the buyer-side hook: `client.on_before_payment_creation(payer_hook(sk, agent_id))`.
 
@@ -82,6 +107,7 @@ def payer_hook(sk: SekishoClient, agent_id: str) -> Any:
             cur = {}
         try:
             req = ctx.selected_requirements
+            validate_payment(req.asset, chain_id_from_network(req.network), _amount(req))
             decision = await sk.screen(
                 counterparty=req.pay_to,
                 direction="outbound",
@@ -94,6 +120,8 @@ def payer_hook(sk: SekishoClient, agent_id: str) -> Any:
                 resource=_text(cur.get("url")),
                 untrusted_context=cur.get("untrusted_context"),
             )
+            validate_decision(decision, counterparty=req.pay_to, amount=_amount(req),
+                              asset=req.asset, chain_id=chain_id_from_network(req.network))
         except Exception as exc:  # noqa: BLE001 - every failure must fail closed
             reason = _failure_reason(exc)
             cur["error"] = f"{type(exc).__name__}: {exc}"
