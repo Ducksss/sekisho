@@ -36,6 +36,9 @@ Use the commands in [website/README.md](../website/README.md) to preview and red
 Automatic Git deployment was enabled on 26 September 2026. Vercel is connected to
 `Ducksss/sekisho`, with `main` as the production branch and `website` as the project
 root. Pushes to `main` publish the public site after a successful deployment; other
-branches create preview deployments. Automatic production domain assignment is enabled,
-and no ignored-build command is configured. No paid upgrade, analytics, or external
-form submission was added.
+branches create preview deployments. The project is on a Hobby team, which only builds
+commits its owner authored, so [vercel-deploy.yml](../.github/workflows/vercel-deploy.yml)
+gets teammates' pushes to `main` deployed by committing a timestamped note under
+`.github/deploys/` as the owner. Run it from the Actions tab to redeploy `main`.
+Automatic production domain assignment is enabled, and no ignored-build command is
+configured. No paid upgrade, analytics, or external form submission was added.

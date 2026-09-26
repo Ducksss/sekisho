@@ -36,7 +36,9 @@ kept up to date as the build goes.
   provenance sections, and drafted [SUBMISSION.md](SUBMISSION.md) (prompt 16).
   A later Claude Code session took the project live on Base Sepolia (prompt 17): service
   configuration, contract deployment and MultiBaas linking, the live counterparty scan,
-  the rehearsals and the verified-results documentation.
+  the rehearsals and the verified-results documentation. Another session added
+  `.github/workflows/vercel-deploy.yml`, which gets teammates' pushes to `main` deployed on
+  the Hobby-plan Vercel project (prompt 18).
 - **Claude** (runtime): the AI analyst writes advisory case notes, and the Treasury Agent
   reasons about which vendor data to buy. Both run behind a provider switch
   (`LLM_PROVIDER`), and the demo also works with `LLM_PROVIDER=none`. The AI never decides

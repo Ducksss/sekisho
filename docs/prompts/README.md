@@ -67,3 +67,6 @@ how the submission presents the project, the audit plan, and the documentation-o
 [17 — Live stack and rehearsal](17-live-stack-rehearsal.md) records the request to configure
 the live services, deploy and link the contracts, pick the demo counterparties from real
 Intercepta profiles, rehearse S1 to S6 and document only verified results.
+
+[18 — Teammate Vercel deploys](18-teammate-vercel-deploys.md) records the request to let
+teammates' pushes deploy on the Hobby-plan Vercel projects, and the workflow that does it.
