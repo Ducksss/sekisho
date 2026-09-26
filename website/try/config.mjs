@@ -1,3 +1,3 @@
 // Public deployment configuration only. Never put API keys or operator tokens here.
-// Leave empty until the limited public runner is deployed over HTTPS and verified.
-export const publicRunnerURL = '';
+// Bounded, server-funded Base Sepolia trial; operator routes remain private.
+export const publicRunnerURL = 'https://sekisho-trial.onrender.com';
