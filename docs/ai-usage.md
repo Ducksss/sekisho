@@ -103,3 +103,10 @@ credentials/funding. Team review of these changes: **pending**.
 ## Browser trial and finalisation (26 September 2026)
 
 At the team's request, Codex translated the first-user review into an execution plan and coordinated three parallel workstreams: public trial backend, guided website trial, and pitch/narration. Codex also reconciled earlier payment controls, corrected console financial-state wording, prepared persistent hosting configuration and independently reviewed the combined result. The public service defaults disabled; live provider/payment qualification remains pending. See [prompt](prompts/20-product-finalisation.md), [execution plan](FINALISATION-PLAN.md) and [evidence log](LIVE-EVIDENCE.md). Test results and limitations are recorded in readiness.md. Team review: pending.
+
+With the subsequently supplied Intercepta and Blockscout keys, Codex validated live
+read-only provider calls, generated a fresh testnet-only merchant key in ignored .env,
+and exercised two 0.05 test-USDC x402 purchases and one blocked purchase. Both settled
+transactions needed later receipt-report reconciliation; no extra signatures were
+created for reconciliation. Contract attestation and hosted execution remain pending.
+Codex updated the deck and public evidence panel with measured results and limitations.

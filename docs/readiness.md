@@ -120,3 +120,42 @@ Ducksss/sekisho before its persistent service can be created. Blueprint defaults
 public execution off. Credentials, funding, deployed contract/event proof, live
 browser tests and team feedback remain outstanding. See FINALISATION-PLAN.md,
 PUBLIC-TRIAL.md and LIVE-EVIDENCE.md. This is keyless readiness, not sponsor qualification.
+
+### Later live preflight in the same pass
+
+The team added Intercepta and Blockscout keys. Their authenticated read-only checks
+now pass; see LIVE-EVIDENCE.md for successful scans and timeout/rate-limit limits.
+Buyer test-USDC balance is 20; all role wallets still need Base Sepolia ETH. MultiBaas
+authenticates but has no linked addresses. No transactions have been sent. The deck
+now reflects API access verified, payment/attestation proof pending.
+
+Foundry v1.8.3 was obtained from its official release and checksum-verified outside
+the repo. A fresh isolated exact-source contract run passed **18 tests**, including
+256 runs for each of 2 fuzz tests. It used a stripped environment and no private keys.
+GitHub CI for commit 0f2ae6c94dd97aae0015d4038bce1dc75fdd7868 also completed successfully:
+https://github.com/Ducksss/sekisho/actions/runs/36239045404 .
+
+### Local x402 payment rehearsal
+
+One 0.05 test-USDC purchase settled through the facilitator and delivered its report.
+The initial receipt report encountered a block-indexing delay; reconciling the same
+transaction later succeeded and the case is PAID. One live flagged-vendor run passed
+S3 with BLOCK, no signature and REFUSED status. Both canonical hashes match. No
+registry attestation succeeded: contracts/role gas/hosted browser proof remain pending.
+Full timings, identifiers and the initial S1 failure are retained in LIVE-EVIDENCE.md.
+
+### Latest reconciliation status
+
+Two local 0.05 test-USDC purchases have settled, both reconciled to PAID by reporting
+the same existing transaction after the initial RPC block lookup failed. The first
+bounded retry patch did not fix the live S1 assertion; keep this limitation visible.
+Buyer now has 19.90 test USDC. No registry/escrow transactions have been sent.
+The updated deck contains the first paid/refused evidence with these limitations.
+
+Receipt refresh now re-fetches the same transaction when a provisional block hash
+is unavailable, with tests for changed/placeholder hashes and fail-closed validation.
+Both settled receipts pass the revised verifier against the real RPC. First-attempt
+confirmation after a fresh payment remains unverified; no third purchase was sent.
+
+Final combined Python run after receipt refresh: **473 passed**. Five trial state
+tests also pass; root visually reviewed the recorded evidence panel.
