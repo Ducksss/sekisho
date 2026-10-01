@@ -37,8 +37,9 @@ Automatic Git deployment was enabled on 26 September 2026. Vercel is connected t
 `Ducksss/sekisho`, with `main` as the production branch and `website` as the project
 root. Pushes to `main` publish the public site after a successful deployment; other
 branches create preview deployments. The project is on a Hobby team, which only builds
-commits its owner authored, so [vercel-deploy.yml](../.github/workflows/vercel-deploy.yml)
-gets teammates' pushes to `main` deployed by committing a timestamped note under
-`.github/deploys/` as the owner. Run it from the Actions tab to redeploy `main`.
+commits its owner authored, so during the event a `vercel-deploy.yml` workflow got
+teammates' pushes to `main` deployed by committing a timestamped note under
+`.github/deploys/` as the owner. The repository went public on 1 October 2026, which lets
+Hobby build collaborators' commits directly, so the workflow and its notes were removed.
 Automatic production domain assignment is enabled, and no ignored-build command is
 configured. No paid upgrade, analytics, or external form submission was added.
